@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0b1220" />
+    <meta name="theme-color" content="#0d0d0d" />
     <meta
       name="description"
       content="Kingbux - pacotes de Robux com compra segura, entrega e suporte."
@@ -86,12 +86,12 @@
             </div>
 
             <div class="hero__actions">
-              <a class="btn btn--primary" href="#checkout">Ir para o checkout</a>
-              <a class="btn btn--ghost" href="#faq">Ver FAQ</a>
+              <a class="btn btn--primary" href="#precos">Ver pacotes</a>
+              <a class="btn btn--ghost" href="#checkout">Ir ao checkout</a>
             </div>
 
             <p class="microprint">
-              Kingbux não é afiliado ao Roblox. Entregas dependem de confirmação e validações.
+              Kingbux
               Consulte nossos termos e políticas.
             </p>
           </div>
@@ -186,10 +186,8 @@
       <section class="section" id="feedbacks" aria-label="Feedbacks de clientes">
         <div class="container">
           <div class="section__head">
-            <h2 class="h2">Feedbacks</h2>
-            <p class="section__sub">
-            
-            </p>
+            <h2 class="h2">Avaliações</h2>
+            <p class="section__sub">Depoimentos de quem já comprou.</p>
           </div>
 
           <div class="feedbackGrid" id="feedbackGrid">
@@ -202,9 +200,14 @@
         <div class="container">
           <div class="section__head">
             <h2 class="h2">Checkout</h2>
-            <p class="section__sub">Preencha e prossiga. A entrega e o pagamento são confirmados no backend.</p>
+            <p class="section__sub">
+              Você paga com PIX aqui mesmo. A Blackcat só gera o código; não abrimos o checkout externo deles.
+            </p>
           </div>
 
+          <div class="checkoutFlow">
+          <div class="notice checkoutFlow__notice" id="checkoutNotice" aria-live="polite"></div>
+          <div id="checkoutFormShell">
           <form class="checkout" id="checkoutForm">
             <div class="checkout__row">
               <label class="field">
@@ -290,7 +293,7 @@
                 </div>
                 <div class="summaryLine summaryLine--muted">
                   <span>Pagamento</span>
-                  <span>Processado por provedor</span>
+                  <span>PIX (código nesta página)</span>
                 </div>
               </div>
             </div>
@@ -304,8 +307,28 @@
               </button>
             </div>
 
-            <div class="notice" id="checkoutNotice" aria-live="polite"></div>
           </form>
+          </div>
+
+          <div class="paymentPanel" id="paymentPanel" hidden>
+            <h3 class="paymentPanel__title">Pague com PIX</h3>
+            <p class="paymentPanel__amount" id="paymentAmount"></p>
+            <p class="paymentPanel__hint">Escaneie o QR no app do banco ou copie o código abaixo.</p>
+            <div class="paymentPanel__qr" id="paymentQrWrap">
+              <img class="paymentPanel__qrImg" id="paymentQrImg" width="280" height="280" alt="QR Code para pagamento PIX" />
+            </div>
+            <label class="field">
+              <span class="field__label">Código copia e cola</span>
+              <textarea class="field__input paymentPanel__code" id="paymentPixCode" readonly rows="4"></textarea>
+            </label>
+            <div class="paymentPanel__actions">
+              <button class="btn btn--primary" type="button" id="copyPixBtn">Copiar código PIX</button>
+              <button class="btn btn--ghost" type="button" id="newOrderBtn">Nova compra</button>
+            </div>
+            <p class="paymentPanel__tx" id="paymentTxLine"></p>
+            <div class="notice paymentPanel__status" id="paymentPollNotice" aria-live="polite"></div>
+          </div>
+          </div>
         </div>
       </section>
 
@@ -322,7 +345,7 @@
             <details class="faq__item" role="listitem">
               <summary>O site é afiliado ao Roblox?</summary>
               <div class="faq__text">
-                Não. Kingbux é uma operação independente e não representa o Roblox.
+                Kingbux é uma operação independente e não representa o Roblox.
               </div>
             </details>
             <details class="faq__item" role="listitem">
@@ -352,7 +375,7 @@
             <span>Kingbux</span>
           </div>
           <div class="footer__small">
-            © <span id="year"></span> Kingbux. Não afiliado ao Roblox.
+            © <span id="year"></span> Kingbux.
           </div>
         </div>
 

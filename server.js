@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const QRCode = require('qrcode');
 
 dotenv.config();
 
@@ -45,6 +46,86 @@ function getBaseUrlFromReq(req) {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').toString();
   return `${proto}://${req.get('host')}`;
+}
+
+/** Busca string BR Code PIX (EMV) aninhada na resposta da gateway. */
+function findPixEmvInObject(obj, depth = 0) {
+  if (!obj || depth > 10) return '';
+  if (typeof obj === 'string') {
+    const compact = obj.replace(/\s+/g, '').trim();
+    if (compact.length >= 50 && /^[0-9A-Za-z]+$/.test(compact) && compact.startsWith('000201')) {
+      return compact;
+    }
+  }
+  if (typeof obj !== 'object') return '';
+  for (const v of Object.values(obj)) {
+    const hit = findPixEmvInObject(v, depth + 1);
+    if (hit) return hit;
+  }
+  return '';
+}
+
+/**
+ * Extrai código PIX e imagem QR da resposta da Blackcat (formatos comuns).
+ * Não expomos invoiceUrl ao cliente: o pagamento é concluído neste site.
+ */
+async function buildOnSitePaymentFromBlackcat(data, amountCents) {
+  const d = data?.data;
+  if (!d || typeof d !== 'object') return null;
+
+  const pix = d.pix || d.pixPayment || d.pixData || {};
+  let pixCode = [
+    pix.qrcode,
+    pix.qrCode,
+    pix.copyAndPaste,
+    pix.copyPaste,
+    pix.brCode,
+    pix.emv,
+    pix.payload,
+    d.qrcode,
+    d.qrCode,
+    d.pixCode,
+    d.pixQrCode,
+    d.brCode,
+  ]
+    .map((x) => (x != null ? String(x).replace(/\s+/g, '').trim() : ''))
+    .find((s) => s.length >= 20);
+
+  if (!pixCode) {
+    pixCode = findPixEmvInObject(d);
+  }
+
+  let qrImage = pix.qrcodeBase64 || pix.qrCodeBase64 || pix.image || d.qrcodeBase64 || d.qrCodeBase64 || '';
+  if (qrImage && typeof qrImage === 'string') {
+    if (!qrImage.startsWith('data:')) {
+      qrImage = `data:image/png;base64,${qrImage}`;
+    }
+  }
+
+  if (pixCode && !qrImage) {
+    try {
+      qrImage = await QRCode.toDataURL(pixCode, {
+        errorCorrectionLevel: 'M',
+        margin: 2,
+        width: 280,
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+    } catch (_) {
+      qrImage = '';
+    }
+  }
+
+  if (!pixCode && !qrImage) {
+    return null;
+  }
+
+  return {
+    transactionId: d.transactionId || d.id || null,
+    status: d.status || 'PENDING',
+    pixCode: pixCode || null,
+    qrImage: qrImage || null,
+    amountCents,
+  };
 }
 
 // Servir o front-end estático (sem expor o resto do projeto).
@@ -169,19 +250,25 @@ app.post('/api/checkout/create', async (req, res) => {
       });
     }
 
-    const invoiceUrl = data?.data?.invoiceUrl;
-    if (!invoiceUrl) {
+    const onSite = await buildOnSitePaymentFromBlackcat(data, amount);
+    if (!onSite) {
       return res.status(502).json({
-        error: 'Blackcat respondeu sucesso, mas não trouxe invoiceUrl.',
-        data: data?.data,
+        error:
+          'A Blackcat não retornou o código PIX nesta resposta. O checkout fica no Kingbux: confira no painel da Blackcat se a venda PIX inclui qrcode/brCode na API, ou fale com o suporte deles.',
+        hint:
+          'Evitamos redirecionar para o checkout externo; é necessário o payload PIX (código copia e cola ou QR) no retorno de create-sale.',
       });
     }
 
     return res.json({
       success: true,
-      paymentUrl: invoiceUrl,
-      transactionId: data?.data?.transactionId,
-      status: data?.data?.status,
+      transactionId: onSite.transactionId,
+      status: onSite.status,
+      payment: {
+        pixCode: onSite.pixCode,
+        qrImage: onSite.qrImage,
+        amountCents: onSite.amountCents,
+      },
     });
   } catch (err) {
     return res.status(500).json({

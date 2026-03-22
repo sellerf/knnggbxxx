@@ -66,19 +66,29 @@ function findPixEmvInObject(obj, depth = 0) {
 }
 
 /**
- * Extrai código PIX e imagem QR da resposta da Blackcat (formatos comuns).
- * Não expomos invoiceUrl ao cliente: o pagamento é concluído neste site.
+ * Monta PIX para exibir no site a partir da resposta de POST /sales/create-sale.
+ * Documentação: data.paymentData com qrCode, copyPaste, qrCodeBase64.
+ * @see https://docs.blackcatpay.com.br/
  */
-async function buildOnSitePaymentFromBlackcat(data, amountCents) {
+async function buildOnSitePixFromSaleResponse(data, amountCents) {
   const d = data?.data;
   if (!d || typeof d !== 'object') return null;
 
+  const pd = d.paymentData && typeof d.paymentData === 'object' ? d.paymentData : {};
   const pix = d.pix || d.pixPayment || d.pixData || {};
+
+  const normalizeCode = (x) => {
+    if (x == null) return '';
+    return String(x).replace(/\s+/g, '').trim();
+  };
+
   let pixCode = [
+    pd.copyPaste,
+    pd.qrCode,
+    pix.copyPaste,
+    pix.copyAndPaste,
     pix.qrcode,
     pix.qrCode,
-    pix.copyAndPaste,
-    pix.copyPaste,
     pix.brCode,
     pix.emv,
     pix.payload,
@@ -88,14 +98,21 @@ async function buildOnSitePaymentFromBlackcat(data, amountCents) {
     d.pixQrCode,
     d.brCode,
   ]
-    .map((x) => (x != null ? String(x).replace(/\s+/g, '').trim() : ''))
+    .map(normalizeCode)
     .find((s) => s.length >= 20);
 
   if (!pixCode) {
     pixCode = findPixEmvInObject(d);
   }
 
-  let qrImage = pix.qrcodeBase64 || pix.qrCodeBase64 || pix.image || d.qrcodeBase64 || d.qrCodeBase64 || '';
+  let qrImage =
+    pd.qrCodeBase64 ||
+    pix.qrcodeBase64 ||
+    pix.qrCodeBase64 ||
+    pix.image ||
+    d.qrcodeBase64 ||
+    d.qrCodeBase64 ||
+    '';
   if (qrImage && typeof qrImage === 'string') {
     if (!qrImage.startsWith('data:')) {
       qrImage = `data:image/png;base64,${qrImage}`;
@@ -144,7 +161,7 @@ app.get('/api/packs', (req, res) => {
 });
 
 // ----------------------------
-// API (ganchos p/ Blackcat)
+// Checkout / pagamento (API de gateway)
 // ----------------------------
 
 app.post('/api/checkout/create', async (req, res) => {
@@ -167,9 +184,9 @@ app.post('/api/checkout/create', async (req, res) => {
   if (!pack) return res.status(400).json({ error: 'Pacote inválido.' });
 
   if (!process.env.BLACKCAT_API_KEY) {
+    console.warn('[Kingbux] BLACKCAT_API_KEY não definida — checkout indisponível.');
     return res.status(501).json({
-      error:
-        'Integração Blackcat não configurada. Defina BLACKCAT_API_KEY no servidor.',
+      error: 'Pagamento indisponível no momento. Tente mais tarde.',
     });
   }
 
@@ -245,18 +262,18 @@ app.post('/api/checkout/create', async (req, res) => {
 
     if (!resp.ok || !data?.success) {
       return res.status(502).json({
-        error: data?.message || 'Falha ao criar venda na Blackcat.',
+        error: data?.message || 'Não foi possível iniciar o pagamento. Tente novamente.',
         details: data?.error || data,
       });
     }
 
-    const onSite = await buildOnSitePaymentFromBlackcat(data, amount);
+    const onSite = await buildOnSitePixFromSaleResponse(data, amount);
     if (!onSite) {
+      console.error(
+        '[Kingbux] Resposta create-sale sem paymentData PIX — verifique data.paymentData na API.'
+      );
       return res.status(502).json({
-        error:
-          'A Blackcat não retornou o código PIX nesta resposta. O checkout fica no Kingbux: confira no painel da Blackcat se a venda PIX inclui qrcode/brCode na API, ou fale com o suporte deles.',
-        hint:
-          'Evitamos redirecionar para o checkout externo; é necessário o payload PIX (código copia e cola ou QR) no retorno de create-sale.',
+        error: 'Não foi possível obter o código PIX. Tente novamente em instantes.',
       });
     }
 
@@ -271,17 +288,15 @@ app.post('/api/checkout/create', async (req, res) => {
       },
     });
   } catch (err) {
+    console.error('[Kingbux] checkout/create', err);
     return res.status(500).json({
-      error: 'Erro interno ao chamar Blackcat.',
+      error: 'Erro ao processar o pagamento. Tente novamente.',
     });
   }
 });
 
-// Webhook: a forma exata de validação de assinatura depende da Blackcat.
+// Webhook do gateway (postbackUrl). Validar assinatura quando a doc indicar.
 app.post('/api/blackcat/webhook', async (req, res) => {
-  // A documentação que você enviou não descreve assinatura/validação de webhook.
-  // Então, por enquanto, aceitamos e respondemos 200 para o provedor.
-  // Assim que você enviar a parte de assinatura (se existir), ajusto aqui.
   const payload = req.body;
   const txId =
     payload?.data?.transactionId ||
@@ -299,18 +314,37 @@ app.post('/api/blackcat/webhook', async (req, res) => {
   });
 
   // Mantém log para depuração local.
-  console.log(
-    '[Kingbux] Blackcat webhook recebido:',
-    JSON.stringify({ txId, status }).slice(0, 500)
-  );
+  console.log('[Kingbux] Webhook pagamento:', JSON.stringify({ txId, status }).slice(0, 500));
 
   return res.status(200).json({ success: true });
 });
 
-app.get('/api/blackcat/transaction/:transactionId', (req, res) => {
+/** Status do pedido: cache do webhook ou GET /sales/{id}/status na API. */
+app.get('/api/blackcat/transaction/:transactionId', async (req, res) => {
   const txId = req.params.transactionId;
-  if (!webhookStore.has(txId)) return res.status(404).json({ error: 'Evento não encontrado.' });
-  return res.json(webhookStore.get(txId));
+  if (webhookStore.has(txId)) {
+    return res.json(webhookStore.get(txId));
+  }
+  if (!process.env.BLACKCAT_API_KEY) {
+    return res.status(404).json({ error: 'Evento não encontrado.' });
+  }
+  try {
+    const r = await fetch(
+      `https://api.blackcatpay.com.br/api/sales/${encodeURIComponent(txId)}/status`,
+      { headers: { 'X-API-Key': process.env.BLACKCAT_API_KEY } }
+    );
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data?.success || !data?.data) {
+      return res.status(404).json({ error: 'Evento não encontrado.' });
+    }
+    return res.json({
+      status: data.data.status,
+      receivedAt: null,
+      payload: data,
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Falha ao consultar status.' });
+  }
 });
 
 app.listen(PORT, () => {

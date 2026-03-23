@@ -9,7 +9,6 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const FOOTER_LOGO_IMAGE_PATH =
 const FOOTER_LOGO_IMAGE_PATH = path.join(__dirname, 'brand-logo.png');
 
 app.use(helmet());

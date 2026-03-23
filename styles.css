@@ -961,6 +961,15 @@ body {
   font-weight: 700;
 }
 
+.footer__brandLogo {
+  width: 34px;
+  height: 34px;
+  display: inline-block;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--stroke-subtle);
+}
+
 .footer__small {
   margin-top: 8px;
   color: var(--muted2);

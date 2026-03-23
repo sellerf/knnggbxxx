@@ -226,9 +226,6 @@ function renderPricingGrid() {
         <button class="btn btn--primary" type="button" data-action="choose" data-pack="${escapeHtml(p.id)}">
           Escolher
         </button>
-        <a class="btn btn--ghost" href="#checkout" data-action="checkout" data-pack="${escapeHtml(p.id)}">
-          Ir ao checkout
-        </a>
       </div>
     `;
 

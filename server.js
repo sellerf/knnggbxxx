@@ -42,11 +42,6 @@ function safeString(value) {
   return s;
 }
 
-function isValidPixEmv(value) {
-  const compact = String(value || '').replace(/\s+/g, '').trim();
-  return compact.length >= 50 && /^[0-9A-Za-z]+$/.test(compact) && compact.startsWith('000201');
-}
-
 function getBaseUrlFromReq(req) {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').toString();
@@ -58,7 +53,7 @@ function findPixEmvInObject(obj, depth = 0) {
   if (!obj || depth > 10) return '';
   if (typeof obj === 'string') {
     const compact = obj.replace(/\s+/g, '').trim();
-    if (isValidPixEmv(compact)) {
+    if (compact.length >= 50 && /^[0-9A-Za-z]+$/.test(compact) && compact.startsWith('000201')) {
       return compact;
     }
   }
@@ -87,7 +82,7 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
     return String(x).replace(/\s+/g, '').trim();
   };
 
-  const candidates = [
+  let pixCode = [
     pd.copyPaste,
     pd.qrCode,
     pix.copyPaste,
@@ -102,9 +97,9 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
     d.pixCode,
     d.pixQrCode,
     d.brCode,
-  ].map(normalizeCode);
-
-  let pixCode = candidates.find((s) => isValidPixEmv(s));
+  ]
+    .map(normalizeCode)
+    .find((s) => s.length >= 20);
 
   if (!pixCode) {
     pixCode = findPixEmvInObject(d);
@@ -137,7 +132,7 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
     }
   }
 
-  if (!pixCode) {
+  if (!pixCode && !qrImage) {
     return null;
   }
 
@@ -188,8 +183,7 @@ app.post('/api/checkout/create', async (req, res) => {
   const pack = getPackById(packId);
   if (!pack) return res.status(400).json({ error: 'Pacote inválido.' });
 
-  const apiKey = safeString(process.env.BLACKCAT_API_KEY);
-  if (!apiKey || /cole_aqui|sua_api_key/i.test(apiKey)) {
+  if (!process.env.BLACKCAT_API_KEY) {
     console.warn('[Kingbux] BLACKCAT_API_KEY não definida — checkout indisponível.');
     return res.status(501).json({
       error: 'Pagamento indisponível no momento. Tente mais tarde.',
@@ -259,7 +253,7 @@ app.post('/api/checkout/create', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
+        'X-API-Key': process.env.BLACKCAT_API_KEY,
       },
       body: JSON.stringify(payload),
     });

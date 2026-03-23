@@ -1,15 +1,387 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Oi</title>
-  <style>
-    body {
-      margin: 0;
-      background-color: #000;
-    }
-  </style>
-</head>
-<body>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <meta
+      name="description"
+      content="Kingbux - pacotes de Robux com compra segura, entrega e suporte."
+    />
+    <title>Kingbux | Robux com Compra Segura</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+
+    <header class="header" role="banner">
+      <div class="container header__inner">
+        <a class="brand" href="/" aria-label="Kingbux">
+          <span class="brand__mark" aria-hidden="true">K</span>
+          <span class="brand__name">Kingbux</span>
+        </a>
+
+        <nav class="nav nav--desktop" aria-label="Navegação">
+          <a class="nav__link" href="#precos">Preços</a>
+          <a class="nav__link" href="#como-funciona">Como funciona</a>
+          <a class="nav__link" href="#faq">FAQ</a>
+          <a class="nav__link" href="#feedbacks">Feedbacks</a>
+        </nav>
+
+        <details class="mobileNav" aria-label="Menu">
+          <summary class="mobileNav__summary">Menu</summary>
+          <div class="mobileNav__links" role="navigation" aria-label="Navegação">
+            <a class="nav__link" href="#precos">Preços</a>
+            <a class="nav__link" href="#como-funciona">Como funciona</a>
+            <a class="nav__link" href="#faq">FAQ</a>
+            <a class="nav__link" href="#feedbacks">Feedbacks</a>
+          </div>
+        </details>
+
+        <div class="header__cta">
+          <a class="btn btn--primary" href="#checkout">Comprar</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero__inner">
+          <div class="hero__copy">
+            <div class="pill">
+              <span class="pill__dot" aria-hidden="true"></span>
+              Pagamento processado por provedor confiável
+            </div>
+            <h1 class="h1">Robux com preços competitivos e processo transparente</h1>
+            <p class="lead">
+              Escolha seu pacote, informe seu ID/usuário do Roblox e finalize o pagamento.
+              A entrega ocorre após a confirmação do pagamento e validações internas.
+            </p>
+
+            <div class="hero__trust">
+              <div class="trustCard">
+                <svg viewBox="0 0 24 24" class="trustCard__icon" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 17.27 18.18 21 18 14.97 22 11.24 16.19 10.28 12 4 7.81 10.28 2 11.24 6 14.97 5.82 21z"
+                  />
+                </svg>
+                <div>
+                  <div class="trustCard__title">Transparência</div>
+                  <div class="trustCard__text">Status claro do pedido e prazos informados.</div>
+                </div>
+              </div>
+              <div class="trustCard">
+                <svg viewBox="0 0 24 24" class="trustCard__icon" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 2C8.1 2 5 5.1 5 9v3.1c-1.2.4-2 1.5-2 2.9v4h20v-4c0-1.4-.8-2.5-2-2.9V9c0-3.9-3.1-7-7-7Zm5 10H7V9c0-2.8 2.2-5 5-5s5 2.2 5 5v3Z"
+                  />
+                </svg>
+                <div>
+                  <div class="trustCard__title">Dados protegidos</div>
+                  <div class="trustCard__text">Sem divulgar informações desnecessárias.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hero__actions">
+              <a class="btn btn--primary" href="#precos">Ver pacotes</a>
+              <a class="btn btn--ghost" href="#checkout">Ir ao checkout</a>
+            </div>
+
+            <p class="microprint">
+              Kingbux
+              Consulte nossos termos e políticas.
+            </p>
+          </div>
+
+          <div class="hero__side">
+            <div class="panel">
+              <div class="panel__header">
+                <h2 class="h2">Pacotes em destaque</h2>
+                <p class="panel__sub">Preços exibidos no formato do Brasil.</p>
+              </div>
+              <div class="panel__list" id="featuredPacks">
+                <!-- preenchido em app.js -->
+              </div>
+              <div class="panel__footer">
+                <a class="link" href="#precos">Ver tabela completa</a>
+              </div>
+            </div>
+
+            <div class="badgeRow" aria-label="Selos de confiança">
+              <div class="badge">
+                <span class="badge__icon" aria-hidden="true">⏱</span>
+                <span>Prazo informado</span>
+              </div>
+              <div class="badge">
+                <span class="badge__icon" aria-hidden="true">🔒</span>
+                <span>Processo seguro</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="precos" aria-label="Preços">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="h2">Tabela de preços</h2>
+            <p class="section__sub">
+              Escolha um pacote. Você pode ajustar ou adicionar mais faixas depois.
+            </p>
+          </div>
+
+          <div class="gridPricing" id="pricingGrid">
+            <!-- preenchido em app.js -->
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="como-funciona" aria-label="Como funciona">
+        <div class="container">
+          <h2 class="h2">Como funciona</h2>
+          <div class="steps">
+            <div class="step">
+              <div class="step__num">1</div>
+              <div class="step__body">
+                <div class="step__title">Selecione o pacote</div>
+                <div class="step__text">Defina a quantidade e confira o valor.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__num">2</div>
+              <div class="step__body">
+                <div class="step__title">Informe seu Roblox</div>
+                <div class="step__text">ID ou usuário para identificar a entrega.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__num">3</div>
+              <div class="step__body">
+                <div class="step__title">Finalize o pagamento</div>
+                <div class="step__text">O provedor processa a transação.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__num">4</div>
+              <div class="step__body">
+                <div class="step__title">Receba após confirmação</div>
+                <div class="step__text">A entrega acontece após validações.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout">
+            <div class="callout__title">Importante</div>
+            <div class="callout__text">
+              Evite compartilhar senha do Roblox. Se houver divergência no pedido, fale com o suporte para revisão.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="feedbacks" aria-label="Feedbacks de clientes">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="h2">Avaliações</h2>
+            <p class="section__sub">Depoimentos de quem já comprou.</p>
+          </div>
+
+          <div class="feedbackGrid" id="feedbackGrid">
+            <!-- preenchido em app.js -->
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="checkout" aria-label="Checkout">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="h2">Checkout</h2>
+            <p class="section__sub">
+              Pague com PIX sem sair da página: QR e código copia e cola aparecem aqui após confirmar seus dados.
+            </p>
+          </div>
+
+          <div class="checkoutFlow">
+          <div class="notice checkoutFlow__notice" id="checkoutNotice" aria-live="polite"></div>
+          <div id="checkoutFormShell">
+          <form class="checkout" id="checkoutForm">
+            <div class="checkout__row">
+              <label class="field">
+                <span class="field__label">Pacote</span>
+                <select class="field__input" id="packSelect" required>
+                  <!-- preenchido em app.js -->
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field__label">Seu ID/usuário do Roblox</span>
+                <input
+                  class="field__input"
+                  id="robloxId"
+                  placeholder="Ex: 123456789 ou nome de usuário"
+                  required
+                  minlength="3"
+                  maxlength="40"
+                />
+              </label>
+            </div>
+
+            <div class="checkout__row">
+              <label class="field">
+                <span class="field__label">Nome completo</span>
+                <input class="field__input" id="customerName" required maxlength="120" />
+              </label>
+
+              <label class="field">
+                <span class="field__label">E-mail</span>
+                <input
+                  class="field__input"
+                  id="customerEmail"
+                  required
+                  type="email"
+                  maxlength="120"
+                />
+              </label>
+            </div>
+
+            <div class="checkout__row">
+              <label class="field">
+                <span class="field__label">Telefone (apenas números)</span>
+                <input
+                  class="field__input"
+                  id="customerPhone"
+                  required
+                  inputmode="numeric"
+                  placeholder="Ex: 11999999999"
+                  maxlength="20"
+                />
+              </label>
+
+              <label class="field">
+                <span class="field__label">Documento (CPF/CNPJ)</span>
+                <div class="docRow">
+                  <select class="field__input" id="documentType" required>
+                    <option value="cpf" selected>CPF</option>
+                    <option value="cnpj">CNPJ</option>
+                  </select>
+                  <input
+                    class="field__input"
+                    id="documentNumber"
+                    required
+                    inputmode="numeric"
+                    placeholder="Apenas números"
+                    maxlength="20"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div class="checkout__summary">
+              <div class="summaryCard">
+                <div class="summaryCard__title">Resumo</div>
+                <div class="summaryLine">
+                  <span>Robux</span>
+                  <strong id="summaryRobux">—</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Valor</span>
+                  <strong id="summaryPrice">—</strong>
+                </div>
+                <div class="summaryLine summaryLine--muted">
+                  <span>Pagamento</span>
+                  <span>PIX (código nesta página)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="checkout__actions">
+              <button class="btn btn--primary" type="submit">
+                Prosseguir para pagamento
+              </button>
+            </div>
+
+          </form>
+          </div>
+
+          <div class="paymentPanel" id="paymentPanel" hidden>
+            <h3 class="paymentPanel__title">Pague com PIX</h3>
+            <p class="paymentPanel__amount" id="paymentAmount"></p>
+            <p class="paymentPanel__hint">Escaneie o QR no app do banco ou copie o código abaixo.</p>
+            <div class="paymentPanel__qr" id="paymentQrWrap">
+              <img class="paymentPanel__qrImg" id="paymentQrImg" width="280" height="280" alt="QR Code para pagamento PIX" />
+            </div>
+            <label class="field">
+              <span class="field__label">Código copia e cola</span>
+              <textarea class="field__input paymentPanel__code" id="paymentPixCode" readonly rows="4"></textarea>
+            </label>
+            <div class="paymentPanel__actions">
+              <button class="btn btn--primary" type="button" id="copyPixBtn">Copiar código PIX</button>
+              <button class="btn btn--ghost" type="button" id="newOrderBtn">Nova compra</button>
+            </div>
+            <p class="paymentPanel__tx" id="paymentTxLine"></p>
+            <div class="notice paymentPanel__status" id="paymentPollNotice" aria-live="polite"></div>
+          </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="faq" aria-label="FAQ">
+        <div class="container">
+          <h2 class="h2">Perguntas frequentes</h2>
+          <div class="faq" role="list">
+            <details class="faq__item" role="listitem">
+              <summary>Em quanto tempo a entrega acontece?</summary>
+              <div class="faq__text">
+                Após a confirmação do pagamento e validações internas. O tempo pode variar conforme o provedor e o fluxo do pedido.
+              </div>
+            </details>
+            <details class="faq__item" role="listitem">
+              <summary>O site é afiliado ao Roblox?</summary>
+              <div class="faq__text">
+                Kingbux é uma operação independente e não representa o Roblox.
+              </div>
+            </details>
+            <details class="faq__item" role="listitem">
+              <summary>Como eu acompanho o pedido?</summary>
+              <div class="faq__text">
+                Depois que você paga o PIX, a confirmação pode levar alguns minutos. Esta página tenta atualizar o status automaticamente; você também pode falar com o suporte com o número do pedido.
+              </div>
+            </details>
+            <details class="faq__item" role="listitem">
+              <summary>O pagamento é seguro?</summary>
+              <div class="faq__text">
+                O PIX é gerado para aquela compra e o valor aparece antes de você pagar. Use sempre o app oficial do seu banco e confira o beneficiário e o valor.
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+      <div class="container footer__inner">
+        <div class="footer__left">
+          <div class="footer__brand">
+            <span class="brand__mark" aria-hidden="true">K</span>
+            <span>Kingbux</span>
+          </div>
+          <div class="footer__small">
+            © <span id="year"></span> Kingbux.
+          </div>
+        </div>
+
+        <div class="footer__right">
+          <a class="link" href="#faq">FAQ</a>
+          <a class="link" href="#feedbacks">Feedbacks</a>
+          <a class="link" href="#checkout">Checkout</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
 </html>
+

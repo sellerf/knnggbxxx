@@ -1,5 +1,10 @@
 let packs = [];
 let paymentPollTimer = null;
+const ORDER_BUMPS = {
+  korblox: { label: 'Korblox', priceCents: 3994 },
+  headless: { label: 'Headless', priceCents: 5990 },
+};
+const COUPON_SEEN_COOKIE = 'kbx_coupon_seen';
 
 const feedbacks = [
   {
@@ -36,6 +41,10 @@ function formatBRLFromCents(cents) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function inflateByFivePercent(cents) {
+  return Math.round(Number(cents || 0) * 1.05);
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll('&', '&amp;')
@@ -63,6 +72,88 @@ function getUTMFromLocation() {
   return out;
 }
 
+function getSeedFromPackId(packId) {
+  return String(packId || '')
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+}
+
+function getCookieValue(name) {
+  const cookie = `; ${document.cookie || ''}`;
+  const parts = cookie.split(`; ${name}=`);
+  if (parts.length < 2) return '';
+  return parts.pop().split(';').shift() || '';
+}
+
+function setCookie(name, value, days) {
+  const maxAge = Math.max(1, Number(days || 1)) * 24 * 60 * 60;
+  document.cookie = `${name}=${value}; max-age=${maxAge}; path=/; SameSite=Lax`;
+}
+
+function hasSeenCouponOverlay() {
+  return getCookieValue(COUPON_SEEN_COOKIE) === '1';
+}
+
+function getPackSocialProof(pack) {
+  const robux = Number(pack?.robux || 0);
+  const seed = getSeedFromPackId(pack?.id);
+  let stars = 5;
+  let minReviews = 52;
+  let maxReviews = 86;
+
+  if (robux >= 5000) {
+    stars = 4;
+    minReviews = 8;
+    maxReviews = 16;
+  } else if (robux >= 3000) {
+    stars = 4;
+    minReviews = 12;
+    maxReviews = 22;
+  } else if (robux >= 2000) {
+    stars = 4;
+    minReviews = 18;
+    maxReviews = 30;
+  } else if (robux >= 1000) {
+    stars = 5;
+    minReviews = 24;
+    maxReviews = 40;
+  } else if (robux >= 400) {
+    stars = 5;
+    minReviews = 36;
+    maxReviews = 58;
+  }
+
+  const spread = Math.max(1, maxReviews - minReviews + 1);
+  const reviewCount = minReviews + (seed % spread);
+  return { stars, reviewCount };
+}
+
+function getNormalizedQuantity() {
+  const qtyInput = document.getElementById('packQuantity');
+  const raw = Number(qtyInput?.value || 1);
+  const qty = Math.min(20, Math.max(1, Number.isFinite(raw) ? Math.floor(raw) : 1));
+  if (qtyInput) qtyInput.value = String(qty);
+  return qty;
+}
+
+function getSelectedBumps() {
+  return {
+    korblox: Boolean(document.getElementById('bumpKorblox')?.checked),
+    headless: Boolean(document.getElementById('bumpHeadless')?.checked),
+  };
+}
+
+function showCouponEarnedNotice() {
+  if (hasSeenCouponOverlay()) return;
+  const couponOverlay = document.getElementById('couponOverlay');
+  if (couponOverlay) couponOverlay.hidden = false;
+}
+
+function openCouponIfCheckout() {
+  if (window.location.hash !== '#checkout') return;
+  showCouponEarnedNotice();
+}
+
 function renderFeatured() {
   const root = document.getElementById('featuredPacks');
   if (!root) return;
@@ -82,7 +173,7 @@ function renderFeatured() {
         <div class="packMini__meta">${escapeHtml(p.tag)}</div>
       </div>
       <div class="packMini__right">
-        <div class="packMini__price">${formatBRLFromCents(p.priceCents)}</div>
+        <div class="packMini__price">${formatBRLFromCents(inflateByFivePercent(p.priceCents))}</div>
         <div class="packMini__cta">Escolher pacote</div>
       </div>
     `;
@@ -91,6 +182,7 @@ function renderFeatured() {
       if (sel) sel.value = p.id;
       updateSummaryFromSelect();
       location.hash = '#checkout';
+      setTimeout(openCouponIfCheckout, 0);
     };
     div.addEventListener('click', choose);
     div.addEventListener('keydown', (e) => {
@@ -112,6 +204,8 @@ function renderPricingGrid() {
   if (sel) sel.innerHTML = '';
 
   packs.forEach((p) => {
+    const social = getPackSocialProof(p);
+    const starsVisual = `${'★'.repeat(social.stars)}${'☆'.repeat(5 - social.stars)}`;
     const card = document.createElement('div');
     card.className = 'priceCard';
     card.setAttribute('data-pack-id', p.id);
@@ -119,10 +213,14 @@ function renderPricingGrid() {
       <div class="priceCard__top">
         <div>
           <div class="priceCard__robux">${p.robux} Robux</div>
+          <div class="priceCard__reviews" aria-label="${social.stars} estrelas com ${social.reviewCount} avaliações">
+            <span class="priceCard__stars" aria-hidden="true">${starsVisual}</span>
+            <span class="priceCard__reviewCount">(${social.reviewCount} avaliações)</span>
+          </div>
         </div>
         <div class="priceCard__tag">${escapeHtml(p.tag)}</div>
       </div>
-      <div class="priceCard__price">${formatBRLFromCents(p.priceCents)}</div>
+      <div class="priceCard__price">${formatBRLFromCents(inflateByFivePercent(p.priceCents))}</div>
       <div class="priceCard__desc">Entrega após confirmação do pagamento. Não pedimos senha do Roblox.</div>
       <div class="priceCard__actions">
         <button class="btn btn--primary" type="button" data-action="choose" data-pack="${escapeHtml(p.id)}">
@@ -142,6 +240,7 @@ function renderPricingGrid() {
         if (btn.getAttribute('data-action') === 'choose') {
           location.hash = '#checkout';
         }
+        setTimeout(openCouponIfCheckout, 0);
       });
     });
 
@@ -150,7 +249,7 @@ function renderPricingGrid() {
     if (sel) {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.robux} Robux - ${formatBRLFromCents(p.priceCents)}`;
+      opt.textContent = `${p.robux} Robux - ${formatBRLFromCents(inflateByFivePercent(p.priceCents))}`;
       sel.appendChild(opt);
     }
   });
@@ -162,19 +261,55 @@ function getPackById(packId) {
 
 function updateSummaryFromSelect() {
   const sel = document.getElementById('packSelect');
+  const qty = getNormalizedQuantity();
+  const bumps = getSelectedBumps();
   const summaryRobux = document.getElementById('summaryRobux');
+  const summaryQuantity = document.getElementById('summaryQuantity');
+  const summaryBumps = document.getElementById('summaryBumps');
+  const summarySitePrice = document.getElementById('summarySitePrice');
+  const summaryCoupon = document.getElementById('summaryCoupon');
   const summaryPrice = document.getElementById('summaryPrice');
-  if (!sel || !summaryRobux || !summaryPrice) return;
+  if (
+    !sel ||
+    !summaryRobux ||
+    !summaryQuantity ||
+    !summaryBumps ||
+    !summarySitePrice ||
+    !summaryCoupon ||
+    !summaryPrice
+  ) {
+    return;
+  }
 
   const pack = getPackById(sel.value);
   if (!pack) {
     summaryRobux.textContent = '—';
+    summaryQuantity.textContent = '—';
+    summaryBumps.textContent = '—';
+    summarySitePrice.textContent = '—';
+    summaryCoupon.textContent = 'Aplique um plano';
     summaryPrice.textContent = '—';
     syncPackSelectionUI('');
     return;
   }
-  summaryRobux.textContent = `${pack.robux}`;
-  summaryPrice.textContent = formatBRLFromCents(pack.priceCents);
+
+  const robuxTotal = pack.robux * qty;
+  const packTotal = pack.priceCents * qty;
+  const selectedBumpKeys = Object.keys(bumps).filter((k) => bumps[k]);
+  const bumpsTotal = selectedBumpKeys.reduce((acc, key) => acc + (ORDER_BUMPS[key]?.priceCents || 0), 0);
+  const rawTotal = packTotal + bumpsTotal;
+  const siteTotal = inflateByFivePercent(rawTotal);
+  const couponDiscount = siteTotal - rawTotal;
+  const finalTotal = packTotal + bumpsTotal;
+
+  summaryRobux.textContent = `${robuxTotal} (${pack.robux} x ${qty})`;
+  summaryQuantity.textContent = String(qty);
+  summaryBumps.textContent = selectedBumpKeys.length
+    ? selectedBumpKeys.map((k) => ORDER_BUMPS[k].label).join(', ')
+    : 'Nenhum';
+  summarySitePrice.textContent = formatBRLFromCents(siteTotal);
+  summaryCoupon.textContent = `- ${formatBRLFromCents(couponDiscount)} (5% OFF)`;
+  summaryPrice.textContent = formatBRLFromCents(finalTotal);
   syncPackSelectionUI(sel.value);
 }
 
@@ -360,6 +495,8 @@ async function createCheckout() {
   const customerPhone = document.getElementById('customerPhone');
   const documentType = document.getElementById('documentType');
   const documentNumber = document.getElementById('documentNumber');
+  const quantity = getNormalizedQuantity();
+  const selectedBumps = getSelectedBumps();
 
   const packId = packSelect?.value;
   const value = robloxId?.value?.trim();
@@ -400,6 +537,8 @@ async function createCheckout() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         packId,
+        quantity,
+        orderBumps: selectedBumps,
         robloxIdOrUsername: value,
         customer,
         ...utm,
@@ -445,6 +584,9 @@ function wireCheckout() {
   });
 
   document.getElementById('packSelect')?.addEventListener('change', () => updateSummaryFromSelect());
+  document.getElementById('packQuantity')?.addEventListener('input', () => updateSummaryFromSelect());
+  document.getElementById('bumpKorblox')?.addEventListener('change', () => updateSummaryFromSelect());
+  document.getElementById('bumpHeadless')?.addEventListener('change', () => updateSummaryFromSelect());
 
   document.getElementById('copyPixBtn')?.addEventListener('click', async () => {
     const el = document.getElementById('paymentPixCode');
@@ -467,6 +609,12 @@ function wireCheckout() {
   });
 
   document.getElementById('newOrderBtn')?.addEventListener('click', () => hidePaymentStep());
+  document.getElementById('couponOverlayContinue')?.addEventListener('click', () => {
+    const couponOverlay = document.getElementById('couponOverlay');
+    if (couponOverlay) couponOverlay.hidden = true;
+    setCookie(COUPON_SEEN_COOKIE, '1', 30);
+  });
+  window.addEventListener('hashchange', openCouponIfCheckout);
 }
 
 function initYear() {

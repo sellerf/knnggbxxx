@@ -218,11 +218,28 @@
               </label>
 
               <label class="field">
-                <span class="field__label">Seu nome de usuário do Roblox</span>
+                <span class="field__label">Quantidade</span>
+                <input
+                  class="field__input"
+                  id="packQuantity"
+                  type="number"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value="1"
+                  required
+                />
+              </label>
+
+            </div>
+
+            <div class="checkout__row">
+              <label class="field">
+                <span class="field__label">Seu ID/usuário do Roblox</span>
                 <input
                   class="field__input"
                   id="robloxId"
-                  placeholder="Ex: kingbux123"
+                  placeholder="Ex: 123456789 ou nome de usuário"
                   required
                   minlength="3"
                   maxlength="40"
@@ -288,13 +305,43 @@
                   <strong id="summaryRobux">—</strong>
                 </div>
                 <div class="summaryLine">
-                  <span>Valor</span>
+                  <span>Quantidade</span>
+                  <strong id="summaryQuantity">1</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Ofertas adicionais</span>
+                  <strong id="summaryBumps">Nenhum</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Subtotal (site)</span>
+                  <strong id="summarySitePrice">—</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Cupom</span>
+                  <strong id="summaryCoupon">Aplique um plano</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Total com cupom</span>
                   <strong id="summaryPrice">—</strong>
                 </div>
                 <div class="summaryLine summaryLine--muted">
                   <span>Pagamento</span>
                   <span>PIX (código nesta página)</span>
                 </div>
+              </div>
+            </div>
+
+            <div class="checkout__summary">
+              <div class="summaryCard summaryCard--offer">
+                <div class="summaryCard__title">Ofertas Adicionais</div>
+                <label class="orderBump">
+                  <input type="checkbox" id="bumpKorblox" />
+                  <span>🔥 Korblox + R$ 39,94</span>
+                </label>
+                <label class="orderBump">
+                  <input type="checkbox" id="bumpHeadless" />
+                  <span>⚡ Headless + R$ 59,90</span>
+                </label>
               </div>
             </div>
 
@@ -381,6 +428,19 @@
         </div>
       </div>
     </footer>
+
+    <div class="couponOverlay" id="couponOverlay" hidden>
+      <div class="couponOverlay__card">
+        <div class="couponOverlay__badge">PROMOÇÃO LIBERADA</div>
+        <h3 class="couponOverlay__title">VOCÊ GANHOU 5% OFF!</h3>
+        <p class="couponOverlay__text">
+          O cupom já foi aplicado automaticamente no seu checkout.
+        </p>
+        <button class="btn btn--primary couponOverlay__btn" type="button" id="couponOverlayContinue">
+          CONTINUAR
+        </button>
+      </div>
+    </div>
 
     <script src="/app.js" defer></script>
   </body>

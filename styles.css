@@ -484,6 +484,24 @@ body {
   font-size: 20px;
 }
 
+.priceCard__reviews {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.priceCard__stars {
+  letter-spacing: 1px;
+  color: var(--yellow);
+}
+
+.priceCard__reviewCount {
+  color: var(--muted2);
+}
+
 .priceCard__tag {
   font-size: 12px;
   color: var(--muted);
@@ -656,6 +674,24 @@ body {
   color: var(--muted2);
 }
 
+.orderBump {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f8f8f8;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  background: rgba(255, 215, 0, 0.06);
+  font-weight: 700;
+}
+
+.orderBump input[type='checkbox'] {
+  accent-color: var(--yellow);
+  transform: scale(1.15);
+}
+
 .checkout__actions {
   margin-top: 16px;
   display: flex;
@@ -671,6 +707,76 @@ body {
 
 .checkoutFlow__notice {
   margin: 0;
+}
+
+.couponOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(3px);
+}
+
+.couponOverlay__card {
+  width: min(560px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  background: linear-gradient(180deg, #1e1a0a, #111111);
+  padding: 26px 22px;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.1), 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.couponOverlay[hidden] {
+  display: none !important;
+}
+
+.couponOverlay__badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #ffd54a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+.couponOverlay__title {
+  margin: 0;
+  font-size: clamp(28px, 6vw, 44px);
+  line-height: 1.05;
+  color: #ffe083;
+  font-weight: 900;
+}
+
+.couponOverlay__text {
+  margin: 12px 0 18px;
+  color: #fff6d3;
+  font-size: 15px;
+}
+
+.couponOverlay__btn {
+  min-width: 220px;
+}
+
+.summaryCard--offer {
+  border-color: rgba(255, 215, 0, 0.45);
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.08), rgba(18, 18, 18, 0.95));
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.12);
+}
+
+.summaryCard--offer .summaryCard__title {
+  color: #ffd54a;
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 #checkoutFormShell.is-hidden {

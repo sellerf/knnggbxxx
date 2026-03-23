@@ -28,6 +28,10 @@ const packs = [
 // Armazenamento em memória apenas para depuração local.
 // Em produção, use banco de dados.
 const webhookStore = new Map();
+const ORDER_BUMPS = {
+  korblox: { title: 'Order bump: Korblox', priceCents: 3994 },
+  headless: { title: 'Order bump: Headless', priceCents: 5990 },
+};
 
 function getPackById(packId) {
   return packs.find((p) => p.id === packId) || null;
@@ -167,6 +171,8 @@ app.get('/api/packs', (req, res) => {
 app.post('/api/checkout/create', async (req, res) => {
   const {
     packId,
+    quantity,
+    orderBumps,
     robloxIdOrUsername,
     customer,
     utm_source,
@@ -182,6 +188,7 @@ app.post('/api/checkout/create', async (req, res) => {
 
   const pack = getPackById(packId);
   if (!pack) return res.status(400).json({ error: 'Pacote inválido.' });
+  const qty = Math.min(20, Math.max(1, Number(quantity) || 1));
 
   if (!process.env.BLACKCAT_API_KEY) {
     console.warn('[Kingbux] BLACKCAT_API_KEY não definida — checkout indisponível.');
@@ -204,10 +211,21 @@ app.post('/api/checkout/create', async (req, res) => {
     });
   }
 
+  const selectedBumps = orderBumps && typeof orderBumps === 'object' ? orderBumps : {};
+  const bumpItems = Object.keys(ORDER_BUMPS)
+    .filter((key) => selectedBumps[key] === true)
+    .map((key) => ({
+      title: ORDER_BUMPS[key].title,
+      unitPrice: ORDER_BUMPS[key].priceCents,
+      quantity: 1,
+      tangible: false,
+    }));
+  const bumpTotal = bumpItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+
   // A API espera:
   // - amount em centavos
   // - items com unitPrice em centavos
-  const amount = pack.priceCents;
+  const amount = pack.priceCents * qty + bumpTotal;
   const externalRef = `KINGBUX-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`; // único
   const baseUrl = getBaseUrlFromReq(req);
   const postbackUrl = `${baseUrl}/api/blackcat/webhook`;
@@ -220,9 +238,10 @@ app.post('/api/checkout/create', async (req, res) => {
       {
         title: `Robux ${pack.robux} (${pack.tag})`,
         unitPrice: pack.priceCents,
-        quantity: 1,
+        quantity: qty,
         tangible: false,
       },
+      ...bumpItems,
     ],
     customer: {
       name,

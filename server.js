@@ -10,7 +10,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const FOOTER_LOGO_IMAGE_PATH =
-  'C:\\Users\\Karina\\.cursor\\projects\\c-Users-Karina-Desktop-kx-KINGBUX\\assets\\c__Users_Karina_AppData_Roaming_Cursor_User_workspaceStorage_71a3c32e12f7e98b38981832196735d0_images_image-276c7ec4-d26c-4d6c-9d30-dc44c2d2fe2d.png';
+  const FOOTER_LOGO_IMAGE_PATH = path.join(__dirname, 'brand-logo.png');
 
 app.use(helmet());
 app.use(express.json({ limit: '200kb' }));

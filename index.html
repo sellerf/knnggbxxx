@@ -217,11 +217,11 @@
               </label>
 
               <label class="field">
-                <span class="field__label">Seu nick do Roblox</span>
+                <span class="field__label">Seu ID/usuário do Roblox</span>
                 <input
                   class="field__input"
                   id="robloxId"
-                  placeholder="Ex: kingbux123"
+                  placeholder="Ex: 123456789 ou nome de usuário"
                   required
                   minlength="3"
                   maxlength="40"
@@ -247,9 +247,37 @@
               </label>
             </div>
 
-        
+            <div class="checkout__row">
+              <label class="field">
+                <span class="field__label">Telefone (apenas números)</span>
+                <input
+                  class="field__input"
+                  id="customerPhone"
+                  required
+                  inputmode="numeric"
+                  placeholder="Ex: 11999999999"
+                  maxlength="20"
+                />
+              </label>
 
-              
+              <label class="field">
+                <span class="field__label">Documento (CPF/CNPJ)</span>
+                <div class="docRow">
+                  <select class="field__input" id="documentType" required>
+                    <option value="cpf" selected>CPF</option>
+                    <option value="cnpj">CNPJ</option>
+                  </select>
+                  <input
+                    class="field__input"
+                    id="documentNumber"
+                    required
+                    inputmode="numeric"
+                    placeholder="Apenas números"
+                    maxlength="20"
+                  />
+                </div>
+              </label>
+            </div>
 
             <div class="checkout__summary">
               <div class="summaryCard">
@@ -267,7 +295,7 @@
                   <span>PIX (código nesta página)</span>
                 </div>
               </div>
-          </div>
+            </div>
 
             <div class="checkout__actions">
               <button class="btn btn--primary" type="submit">

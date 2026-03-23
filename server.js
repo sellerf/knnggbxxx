@@ -197,7 +197,7 @@ app.post('/api/checkout/create', async (req, res) => {
   const docNumber = onlyDigits(customer?.document?.number);
   const docType = safeString(customer?.document?.type).toLowerCase();
 
-  if (!name || !email || || || {
+  if (!name || !email || !phone || !docNumber || !docType) {
     return res.status(400).json({
       error:
         'Dados do cliente incompletos. Preencha name, email, phone e document(number/type).',

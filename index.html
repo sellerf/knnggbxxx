@@ -203,13 +203,12 @@
           <div class="section__head">
             <h2 class="h2">Checkout</h2>
             <p class="section__sub">
-              Pague com PIX sem sair da página: QR e código copia e cola aparecem aqui após confirmar seus dados.
+              Após confirmar seus dados, você será redirecionado para o checkout seguro da BlackCat.
             </p>
           </div>
 
           <div class="checkoutFlow">
           <div class="notice checkoutFlow__notice" id="checkoutNotice" aria-live="polite"></div>
-          <div id="checkoutFormShell">
           <form class="checkout" id="checkoutForm">
             <div class="checkout__row">
               <label class="field">
@@ -332,7 +331,7 @@
                 </div>
                 <div class="summaryLine summaryLine--muted">
                   <span>Pagamento</span>
-                  <span>PIX (código nesta página)</span>
+                  <span>Checkout seguro BlackCat</span>
                 </div>
               </div>
             </div>
@@ -358,26 +357,6 @@
             </div>
 
           </form>
-          </div>
-
-          <div class="paymentPanel" id="paymentPanel" hidden>
-            <h3 class="paymentPanel__title">Pague com PIX</h3>
-            <p class="paymentPanel__amount" id="paymentAmount"></p>
-            <p class="paymentPanel__hint">Escaneie o QR no app do banco ou copie o código abaixo.</p>
-            <div class="paymentPanel__qr" id="paymentQrWrap">
-              <img class="paymentPanel__qrImg" id="paymentQrImg" width="280" height="280" alt="QR Code para pagamento PIX" />
-            </div>
-            <label class="field">
-              <span class="field__label">Código copia e cola</span>
-              <textarea class="field__input paymentPanel__code" id="paymentPixCode" readonly rows="4"></textarea>
-            </label>
-            <div class="paymentPanel__actions">
-              <button class="btn btn--primary" type="button" id="copyPixBtn">Copiar código PIX</button>
-              <button class="btn btn--ghost" type="button" id="newOrderBtn">Nova compra</button>
-            </div>
-            <p class="paymentPanel__tx" id="paymentTxLine"></p>
-            <div class="notice paymentPanel__status" id="paymentPollNotice" aria-live="polite"></div>
-          </div>
           </div>
         </div>
       </section>

@@ -3,7 +3,6 @@ const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const QRCode = require('qrcode');
 
 dotenv.config();
 
@@ -141,87 +140,6 @@ function getPaymentDataFromSaleResponse(data) {
   return { ...rootPd, ...nestedPd };
 }
 
-/**
- * Monta PIX para exibir no site a partir da resposta de POST /sales/create-sale.
- * Documentação: data.paymentData com qrCode, copyPaste, qrCodeBase64.
- * @see https://docs.blackcatpay.com.br/
- */
-async function buildOnSitePixFromSaleResponse(data, amountCents) {
-  const d = data?.data;
-  if (!d || typeof d !== 'object') return null;
-
-  const pd = getPaymentDataFromSaleResponse(data);
-  const pix = d.pix || d.pixPayment || d.pixData || {};
-
-  const candidates = [
-    pd.copyPaste,
-    pd.qrCode,
-    pix.copyPaste,
-    pix.copyAndPaste,
-    pix.qrcode,
-    pix.qrCode,
-    pix.brCode,
-    pix.emv,
-    pix.payload,
-    d.qrcode,
-    d.qrCode,
-    d.pixCode,
-    d.pixQrCode,
-    d.brCode,
-  ];
-
-  let pixCode = '';
-  for (const c of candidates) {
-    const coerced = coerceToPixBrCode(c);
-    if (coerced) {
-      pixCode = coerced;
-      break;
-    }
-  }
-
-  if (!pixCode) {
-    pixCode = findPixEmvInObject(d);
-  }
-
-  let qrImage =
-    pd.qrCodeBase64 ||
-    pix.qrcodeBase64 ||
-    pix.qrCodeBase64 ||
-    pix.image ||
-    d.qrcodeBase64 ||
-    d.qrCodeBase64 ||
-    '';
-  if (qrImage && typeof qrImage === 'string') {
-    if (!qrImage.startsWith('data:')) {
-      qrImage = `data:image/png;base64,${qrImage}`;
-    }
-  }
-
-  if (pixCode && !qrImage) {
-    try {
-      qrImage = await QRCode.toDataURL(pixCode, {
-        errorCorrectionLevel: 'M',
-        margin: 2,
-        width: 280,
-        color: { dark: '#000000', light: '#ffffff' },
-      });
-    } catch (_) {
-      qrImage = '';
-    }
-  }
-
-  if (!pixCode && !qrImage) {
-    return null;
-  }
-
-  return {
-    transactionId: d.transactionId || d.id || null,
-    status: d.status || 'PENDING',
-    pixCode: pixCode || null,
-    qrImage: qrImage || null,
-    amountCents,
-  };
-}
 
 // Servir o front-end estático (sem expor o resto do projeto).
 app.get('/', (req, res) => {
@@ -375,25 +293,21 @@ app.post('/api/checkout/create', async (req, res) => {
       });
     }
 
-    const onSite = await buildOnSitePixFromSaleResponse(data, amount);
-    if (!onSite) {
-      console.error(
-        '[Kingbux] Resposta create-sale sem paymentData PIX — verifique data.paymentData na API.'
-      );
+    const tx = data?.data && typeof data.data === 'object' ? data.data : {};
+    const checkoutUrl = tx.invoiceUrl || tx.checkoutUrl || null;
+    if (!checkoutUrl) {
+      console.error('[Kingbux] Resposta create-sale sem invoiceUrl/checkoutUrl.');
       return res.status(502).json({
-        error: 'Não foi possível obter o código PIX. Tente novamente em instantes.',
+        error: 'Não foi possível iniciar o checkout seguro. Tente novamente em instantes.',
       });
     }
 
     return res.json({
       success: true,
-      transactionId: onSite.transactionId,
-      status: onSite.status,
-      payment: {
-        pixCode: onSite.pixCode,
-        qrImage: onSite.qrImage,
-        amountCents: onSite.amountCents,
-      },
+      transactionId: tx.transactionId || tx.id || null,
+      status: tx.status || 'PENDING',
+      amountCents: amount,
+      checkoutUrl,
     });
   } catch (err) {
     console.error('[Kingbux] checkout/create', err);

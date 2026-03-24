@@ -1,5 +1,4 @@
 let packs = [];
-let paymentPollTimer = null;
 const ORDER_BUMPS = {
   korblox: { label: 'Korblox', priceCents: 3994 },
   headless: { label: 'Headless', priceCents: 5990 },
@@ -349,139 +348,6 @@ async function fetchPacks() {
   packs = Array.isArray(data?.packs) ? data.packs : [];
 }
 
-function isPaidStatus(status) {
-  const s = String(status || '').toLowerCase();
-  return (
-    s.includes('paid') ||
-    s.includes('pago') ||
-    s.includes('aprov') ||
-    s.includes('confirm') ||
-    s.includes('completed') ||
-    s.includes('success')
-  );
-}
-
-function stopPaymentPoll() {
-  if (paymentPollTimer != null) {
-    clearInterval(paymentPollTimer);
-    paymentPollTimer = null;
-  }
-}
-
-function showPaymentStep(data) {
-  const shell = document.getElementById('checkoutFormShell');
-  const panel = document.getElementById('paymentPanel');
-  if (!panel || !shell) return;
-
-  stopPaymentPoll();
-
-  shell.classList.add('is-hidden');
-  panel.hidden = false;
-
-  const amountEl = document.getElementById('paymentAmount');
-  const pixCodeEl = document.getElementById('paymentPixCode');
-  const qrImg = document.getElementById('paymentQrImg');
-  const qrWrap = document.getElementById('paymentQrWrap');
-  const txLine = document.getElementById('paymentTxLine');
-  const pollNotice = document.getElementById('paymentPollNotice');
-
-  const pay = data.payment || {};
-  const cents = pay.amountCents;
-  if (amountEl) {
-    amountEl.textContent = typeof cents === 'number' ? formatBRLFromCents(cents) : 'Valor do pedido';
-  }
-  if (pixCodeEl) {
-    pixCodeEl.value = pay.pixCode || '';
-  }
-  if (qrImg && qrWrap) {
-    if (pay.qrImage) {
-      qrImg.src = pay.qrImage;
-      qrImg.hidden = false;
-      qrWrap.hidden = false;
-    } else {
-      qrImg.removeAttribute('src');
-      qrImg.hidden = true;
-      qrWrap.hidden = true;
-    }
-  }
-  if (txLine) {
-    const tid = data.transactionId;
-    txLine.textContent = tid ? `Pedido: ${tid}` : '';
-  }
-  if (pollNotice) {
-    setNotice(
-      pollNotice,
-      null,
-      'Aguardando confirmação do PIX… pode levar alguns instantes depois que você pagar.'
-    );
-  }
-
-  const tid = data.transactionId;
-  if (tid) startPaymentPoll(tid);
-}
-
-function hidePaymentStep() {
-  const shell = document.getElementById('checkoutFormShell');
-  const panel = document.getElementById('paymentPanel');
-  const checkoutNotice = document.getElementById('checkoutNotice');
-  stopPaymentPoll();
-  if (shell) shell.classList.remove('is-hidden');
-  if (panel) panel.hidden = true;
-  if (checkoutNotice) {
-    checkoutNotice.textContent = '';
-    checkoutNotice.classList.remove('notice--ok', 'notice--err');
-  }
-  const pollNotice = document.getElementById('paymentPollNotice');
-  if (pollNotice) {
-    pollNotice.textContent = '';
-    pollNotice.classList.remove('notice--ok', 'notice--err');
-  }
-}
-
-function startPaymentPoll(transactionId) {
-  stopPaymentPoll();
-  const pollNotice = document.getElementById('paymentPollNotice');
-  let ticks = 0;
-  const maxTicks = 90;
-
-  paymentPollTimer = setInterval(async () => {
-    ticks += 1;
-    if (ticks > maxTicks) {
-      stopPaymentPoll();
-      if (pollNotice) {
-        setNotice(
-          pollNotice,
-          null,
-          'Verificação automática encerrada. Se já pagou, aguarde a confirmação.'
-        );
-      }
-      return;
-    }
-    try {
-      const r = await fetch(`/api/blackcat/transaction/${encodeURIComponent(transactionId)}`);
-      if (!r.ok) return;
-      const j = await r.json();
-      const st =
-        j.status ||
-        j.payload?.data?.status ||
-        j.payload?.status ||
-        j.payload?.data?.data?.status;
-      if (isPaidStatus(st)) {
-        stopPaymentPoll();
-        if (pollNotice) {
-          setNotice(
-            pollNotice,
-            'ok',
-            'Pagamento confirmado. Obrigado! Você pode fazer uma nova compra abaixo.'
-          );
-        }
-      }
-    } catch (_) {
-      /* ignora falha de rede pontual */
-    }
-  }, 4000);
-}
-
 async function createCheckout() {
   const notice = document.getElementById('checkoutNotice');
   const form = document.getElementById('checkoutForm');
@@ -550,9 +416,9 @@ async function createCheckout() {
       return;
     }
 
-    if (data?.success && data?.payment && (data.payment.pixCode || data.payment.qrImage)) {
-      setNotice(notice, 'ok', 'Pedido criado. Pague com PIX na tela abaixo.');
-      showPaymentStep(data);
+    if (data?.success && data?.checkoutUrl) {
+      setNotice(notice, 'ok', 'Pedido criado. Redirecionando para o checkout seguro...');
+      window.location.href = data.checkoutUrl;
       return;
     }
 
@@ -585,27 +451,6 @@ function wireCheckout() {
   document.getElementById('bumpKorblox')?.addEventListener('change', () => updateSummaryFromSelect());
   document.getElementById('bumpHeadless')?.addEventListener('change', () => updateSummaryFromSelect());
 
-  document.getElementById('copyPixBtn')?.addEventListener('click', async () => {
-    const el = document.getElementById('paymentPixCode');
-    const t = el?.value?.trim();
-    if (!t) return;
-    const btn = document.getElementById('copyPixBtn');
-    try {
-      await navigator.clipboard.writeText(t);
-      if (btn) {
-        const prev = btn.textContent;
-        btn.textContent = 'Copiado!';
-        setTimeout(() => {
-          btn.textContent = prev;
-        }, 2000);
-      }
-    } catch {
-      el.select();
-      document.execCommand('copy');
-    }
-  });
-
-  document.getElementById('newOrderBtn')?.addEventListener('click', () => hidePaymentStep());
   document.getElementById('couponOverlayContinue')?.addEventListener('click', () => {
     const couponOverlay = document.getElementById('couponOverlay');
     if (couponOverlay) couponOverlay.hidden = true;

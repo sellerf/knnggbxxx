@@ -250,9 +250,9 @@
             </div>
 
             <div class="checkout__row">
-              <label class="field" style="display: none;">
+              <label class="field">
                 <span class="field__label">Nome completo</span>
-                <input class="field__input" id="customerName" required maxlength="120" value="Nome Aqui" />
+                <input class="field__input" id="customerName" required maxlength="120" autocomplete="name" />
               </label>
 
               <label class="field">
@@ -260,9 +260,13 @@
                 <input
                   class="field__input"
                   id="customerEmail"
+                  name="kingbux-checkout-email"
                   required
                   type="email"
                   maxlength="120"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
                 />
               </label>
             </div>

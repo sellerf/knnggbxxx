@@ -249,9 +249,16 @@
             </div>
 
             <div class="checkout__row">
-              <label class="field">
+              <label class="field" style="display: none;">
                 <span class="field__label">Nome completo</span>
-                <input class="field__input" id="customerName" required maxlength="120" autocomplete="name" />
+                <input
+                  class="field__input"
+                  id="customerName"
+                  required
+                  maxlength="120"
+                  autocomplete="name"
+                  value="Cliente Teste Kingbux"
+                />
               </label>
 
               <label class="field">
@@ -271,19 +278,19 @@
             </div>
 
             <div class="checkout__row">
-              <label class="field">
+              <label class="field" style="display: none;">
                 <span class="field__label">Telefone (apenas números)</span>
                 <input
                   class="field__input"
                   id="customerPhone"
                   required
                   inputmode="numeric"
-                  placeholder="11999999999"
+                  value="11999999999"
                   maxlength="20"
                 />
               </label>
 
-              <label class="field">
+              <label class="field" style="display: none;">
                 <span class="field__label">Documento (CPF/CNPJ)</span>
                 <div class="docRow">
                   <select class="field__input" id="documentType" required>
@@ -295,7 +302,7 @@
                     id="documentNumber"
                     required
                     inputmode="numeric"
-                    placeholder="Somente números"
+                    value="12345678900"
                     maxlength="20"
                   />
                 </div>

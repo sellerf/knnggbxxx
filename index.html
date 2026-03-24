@@ -17,8 +17,23 @@
     <header class="header" role="banner">
       <div class="container header__inner">
         <a class="brand" href="/" aria-label="Kingbux">
-          <span class="brand__mark" aria-hidden="true">K</span>
+          <img class="brand__logo" src="brand-logo.png" alt="" width="34" height="34" decoding="async" />
           <span class="brand__name">Kingbux</span>
+        </a>
+
+        <a
+          class="discordIcon"
+          href="https://discord.gg/4djqFQzZr5"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Discord do Kingbux"
+        >
+          <svg viewBox="0 0 24 24" class="discordIcon__svg" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.211.375-.444.894-.559 1.186a19.21 19.21 0 0 0-5.145 0c-.115-.292-.348-.81-.559-1.186a.074.074 0 0 0-.079-.037A19.736 19.736 0 0 0 3.317 4.369a.066.066 0 0 0-.01.005c-.533 2.045-.641 4.08-.404 6.106a.067.067 0 0 0 .027.046c1.02.934 2.2 1.625 3.49 2.082a.067.067 0 0 0 .068-.014c.347-.251.659-.543.93-.868a.067.067 0 0 0 .015-.058c-.01-.041-.022-.081-.034-.121a.074.074 0 0 0-.022-.037a.075.075 0 0 0-.045-.015a1.824 1.824 0 0 1-.271-.078a.072.072 0 0 1-.038-.103c.05-.104.1-.207.148-.31a.072.072 0 0 1 .08-.04c.21.052.423.1.639.144a.073.073 0 0 1 .056.049a9.058 9.058 0 0 0 .044.149a.073.073 0 0 1-.02.072a8.207 8.207 0 0 1-.518.5a.067.067 0 0 0-.019.06c.016.127.038.252.066.376a.074.074 0 0 0 .07.056c.69.035 1.37.035 2.06 0a.074.074 0 0 0 .07-.056c.028-.124.05-.249.066-.376a.067.067 0 0 0-.019-.06a8.207 8.207 0 0 1-.518-.5a.073.073 0 0 1-.02-.072a9.058 9.058 0 0 0 .044-.149a.073.073 0 0 1 .056-.049c.216-.044.429-.092.639-.144a.072.072 0 0 1 .08.04c.048.103.098.206.148.31a.072.072 0 0 1-.038.103a1.824 1.824 0 0 1-.271.078a.075.075 0 0 0-.045.015a.074.074 0 0 0-.022.037c-.012.04-.024.08-.034.121a.067.067 0 0 0 .015.058c.271.325.583.617.93.868a.067.067 0 0 0 .068.014c1.29-.457 2.47-1.148 3.49-2.082a.067.067 0 0 0 .027-.046c.237-2.026.129-4.061-.404-6.106a.066.066 0 0 0-.01-.005ZM9.53 15.776c-1.03 0-1.876-.95-1.876-2.12 0-1.17.834-2.12 1.876-2.12 1.048 0 1.876.96 1.864 2.12 0 1.17-.834 2.12-1.864 2.12Zm4.94 0c-1.03 0-1.876-.95-1.876-2.12 0-1.17.834-2.12 1.876-2.12 1.048 0 1.876.96 1.864 2.12 0 1.17-.834 2.12-1.864 2.12Z"
+            />
+          </svg>
         </a>
 
         <nav class="nav nav--desktop" aria-label="Navegação">
@@ -330,7 +345,21 @@
                 </div>
                 <div class="summaryLine">
                   <span>Cupom</span>
-                  <strong id="summaryCoupon">Aplique um plano</strong>
+                  <strong id="summaryCoupon">Nenhum</strong>
+                </div>
+                <div class="summaryLine">
+                  <span>Aplicar</span>
+                  <div class="couponApply" aria-label="Aplicar cupom">
+                    <input
+                      class="couponApply__input"
+                      id="couponInput"
+                      placeholder="NEXUS"
+                      maxlength="20"
+                    />
+                    <button class="btn btn--ghost couponApply__btn" type="button" id="applyCouponBtn">
+                      Aplicar
+                    </button>
+                  </div>
                 </div>
                 <div class="summaryLine">
                   <span>Total com cupom</span>
@@ -405,7 +434,7 @@
       <div class="container footer__inner">
         <div class="footer__left">
           <div class="footer__brand">
-            <img class="footer__brandLogo" src="/brand-logo.png" alt="Logo Kingbux" />
+            <img class="footer__brandLogo" src="brand-logo.png" alt="Logo Kingbux" decoding="async" />
             <span>Kingbux</span>
           </div>
           <div class="footer__small">
@@ -427,9 +456,9 @@
     <div class="couponOverlay" id="couponOverlay" hidden>
       <div class="couponOverlay__card">
         <div class="couponOverlay__badge">PROMOÇÃO LIBERADA</div>
-        <h3 class="couponOverlay__title">VOCÊ GANHOU 5% OFF!</h3>
+        <h3 class="couponOverlay__title">Cupom aplicado!</h3>
         <p class="couponOverlay__text">
-          O cupom já foi aplicado automaticamente no seu checkout.
+          Desconto aplicado no seu pedido.
         </p>
         <button class="btn btn--primary couponOverlay__btn" type="button" id="couponOverlayContinue">
           CONTINUAR

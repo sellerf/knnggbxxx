@@ -70,17 +70,39 @@ body {
   color: inherit;
 }
 
-.brand__mark {
+.brand__logo {
   width: 34px;
   height: 34px;
+  display: block;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--stroke-subtle);
+  background: #121212;
+  flex: 0 0 auto;
+}
+
+.discordIcon {
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: var(--yellow);
-  border: 1px solid var(--yellow-dim);
-  color: #0d0d0d;
-  font-weight: 800;
+  border-radius: 12px;
+  color: #5865f2;
+  border: 1px solid rgba(88, 101, 242, 0.35);
+  background: rgba(88, 101, 242, 0.08);
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+
+.discordIcon:hover {
+  background: rgba(88, 101, 242, 0.18);
+  border-color: rgba(88, 101, 242, 0.55);
+}
+
+.discordIcon__svg {
+  width: 22px;
+  height: 22px;
 }
 
 .brand__name {
@@ -666,6 +688,33 @@ body {
   padding: 6px 0;
 }
 
+.couponApply {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.couponApply__input {
+  width: 150px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--stroke-subtle);
+  background: #121212;
+  color: var(--text);
+  outline: none;
+}
+
+.couponApply__input:focus {
+  border-color: var(--yellow-dim);
+  box-shadow: 0 0 0 3px var(--yellow-glow);
+}
+
+.couponApply__btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
 .summaryLine strong {
   color: var(--text);
 }
@@ -965,9 +1014,10 @@ body {
   width: 34px;
   height: 34px;
   display: inline-block;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
   border: 1px solid var(--stroke-subtle);
+  background: #121212;
 }
 
 .footer__small {

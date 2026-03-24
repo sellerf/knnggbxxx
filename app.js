@@ -3,6 +3,14 @@ const ORDER_BUMPS = {
   korblox: { label: 'Korblox', priceCents: 3994 },
   headless: { label: 'Headless', priceCents: 5990 },
 };
+
+const COUPONS = {
+  NEXUS: 0.25,
+  BIGGESTFIRE: 0.25,
+  IRISVAN: 0.3,
+};
+
+let appliedCoupon = null; // { code: string, discountPct: number }
 const COUPON_SEEN_COOKIE = 'kbx_coupon_seen';
 
 const feedbacks = [
@@ -143,9 +151,18 @@ function getSelectedBumps() {
 }
 
 function showCouponEarnedNotice() {
+  if (!appliedCoupon) return;
   if (hasSeenCouponOverlay()) return;
   const couponOverlay = document.getElementById('couponOverlay');
-  if (couponOverlay) couponOverlay.hidden = false;
+  if (!couponOverlay) return;
+
+  const pct = Math.round(appliedCoupon.discountPct * 100);
+  const titleEl = couponOverlay.querySelector('.couponOverlay__title');
+  const textEl = couponOverlay.querySelector('.couponOverlay__text');
+  if (titleEl) titleEl.textContent = 'Cupom aplicado!';
+  if (textEl) textEl.textContent = `Você ganhou ${pct}% de desconto (${appliedCoupon.code}).`;
+
+  couponOverlay.hidden = false;
 }
 
 function openCouponIfCheckout() {
@@ -172,7 +189,7 @@ function renderFeatured() {
         <div class="packMini__meta">${escapeHtml(p.tag)}</div>
       </div>
       <div class="packMini__right">
-        <div class="packMini__price">${formatBRLFromCents(inflateByFivePercent(p.priceCents))}</div>
+        <div class="packMini__price">${formatBRLFromCents(p.priceCents)}</div>
         <div class="packMini__cta">Escolher pacote</div>
       </div>
     `;
@@ -219,7 +236,7 @@ function renderPricingGrid() {
         </div>
         <div class="priceCard__tag">${escapeHtml(p.tag)}</div>
       </div>
-      <div class="priceCard__price">${formatBRLFromCents(inflateByFivePercent(p.priceCents))}</div>
+      <div class="priceCard__price">${formatBRLFromCents(p.priceCents)}</div>
       <div class="priceCard__desc">Entrega após confirmação do pagamento. Não pedimos senha do Roblox.</div>
       <div class="priceCard__actions">
         <button class="btn btn--primary" type="button" data-action="choose" data-pack="${escapeHtml(p.id)}">
@@ -245,7 +262,7 @@ function renderPricingGrid() {
     if (sel) {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.robux} Robux - ${formatBRLFromCents(inflateByFivePercent(p.priceCents))}`;
+      opt.textContent = `${p.robux} Robux - ${formatBRLFromCents(p.priceCents)}`;
       sel.appendChild(opt);
     }
   });
@@ -283,7 +300,7 @@ function updateSummaryFromSelect() {
     summaryQuantity.textContent = '—';
     summaryBumps.textContent = '—';
     summarySitePrice.textContent = '—';
-    summaryCoupon.textContent = 'Aplique um plano';
+    summaryCoupon.textContent = 'Nenhum';
     summaryPrice.textContent = '—';
     syncPackSelectionUI('');
     return;
@@ -293,18 +310,19 @@ function updateSummaryFromSelect() {
   const packTotal = pack.priceCents * qty;
   const selectedBumpKeys = Object.keys(bumps).filter((k) => bumps[k]);
   const bumpsTotal = selectedBumpKeys.reduce((acc, key) => acc + (ORDER_BUMPS[key]?.priceCents || 0), 0);
-  const rawTotal = packTotal + bumpsTotal;
-  const siteTotal = inflateByFivePercent(rawTotal);
-  const couponDiscount = siteTotal - rawTotal;
-  const finalTotal = packTotal + bumpsTotal;
+  const baseTotal = packTotal + bumpsTotal;
+  const discountPct = appliedCoupon ? appliedCoupon.discountPct : 0;
+  const finalTotal = discountPct > 0 ? Math.round(baseTotal * (1 - discountPct)) : baseTotal;
+  const discountCents = baseTotal - finalTotal;
+  const pct = appliedCoupon ? Math.round(appliedCoupon.discountPct * 100) : 0;
 
   summaryRobux.textContent = `${robuxTotal} (${pack.robux} x ${qty})`;
   summaryQuantity.textContent = String(qty);
   summaryBumps.textContent = selectedBumpKeys.length
     ? selectedBumpKeys.map((k) => ORDER_BUMPS[k].label).join(', ')
     : 'Nenhum';
-  summarySitePrice.textContent = formatBRLFromCents(siteTotal);
-  summaryCoupon.textContent = `- ${formatBRLFromCents(couponDiscount)} (5% OFF)`;
+  summarySitePrice.textContent = formatBRLFromCents(baseTotal);
+  summaryCoupon.textContent = discountCents > 0 ? `- ${formatBRLFromCents(discountCents)} (${pct}% OFF)` : 'Nenhum';
   summaryPrice.textContent = formatBRLFromCents(finalTotal);
   syncPackSelectionUI(sel.value);
 }
@@ -360,6 +378,7 @@ async function createCheckout() {
   const documentNumber = document.getElementById('documentNumber');
   const quantity = getNormalizedQuantity();
   const selectedBumps = getSelectedBumps();
+  const couponCode = appliedCoupon?.code || '';
 
   const packId = packSelect?.value;
   const value = robloxId?.value?.trim();
@@ -404,6 +423,7 @@ async function createCheckout() {
         orderBumps: selectedBumps,
         robloxIdOrUsername: value,
         customer,
+        couponCode,
         ...utm,
       }),
     });
@@ -450,6 +470,33 @@ function wireCheckout() {
   document.getElementById('packQuantity')?.addEventListener('input', () => updateSummaryFromSelect());
   document.getElementById('bumpKorblox')?.addEventListener('change', () => updateSummaryFromSelect());
   document.getElementById('bumpHeadless')?.addEventListener('change', () => updateSummaryFromSelect());
+
+  const couponInput = document.getElementById('couponInput');
+  const applyCouponBtn = document.getElementById('applyCouponBtn');
+  const checkoutNotice = document.getElementById('checkoutNotice');
+
+  const applyCoupon = () => {
+    const raw = couponInput?.value?.trim() || '';
+    const code = raw.toUpperCase();
+    const pct = COUPONS[code];
+    if (!pct) {
+      appliedCoupon = null;
+      updateSummaryFromSelect();
+      if (checkoutNotice) setNotice(checkoutNotice, null, 'Cupom removido/ inválido.');
+      return;
+    }
+
+    appliedCoupon = { code, discountPct: pct };
+    updateSummaryFromSelect();
+    if (checkoutNotice) setNotice(checkoutNotice, 'ok', `Cupom ${code} aplicado!`);
+  };
+
+  applyCouponBtn?.addEventListener('click', applyCoupon);
+  couponInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    applyCoupon();
+  });
 
   document.getElementById('couponOverlayContinue')?.addEventListener('click', () => {
     const couponOverlay = document.getElementById('couponOverlay');

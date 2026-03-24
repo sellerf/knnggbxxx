@@ -8,8 +8,6 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const FOOTER_LOGO_IMAGE_PATH =
-  'C:\\Users\\Karina\\.cursor\\projects\\c-Users-Karina-Desktop-kx-KINGBUX\\assets\\c__Users_Karina_AppData_Roaming_Cursor_User_workspaceStorage_71a3c32e12f7e98b38981832196735d0_images_image-276c7ec4-d26c-4d6c-9d30-dc44c2d2fe2d.png';
 
 app.use(helmet());
 app.use(express.json({ limit: '200kb' }));
@@ -32,6 +30,12 @@ const webhookStore = new Map();
 const ORDER_BUMPS = {
   korblox: { title: 'Order bump: Korblox', priceCents: 3994 },
   headless: { title: 'Order bump: Headless', priceCents: 5990 },
+};
+
+const COUPONS = {
+  NEXUS: { discountPct: 0.25, label: 'NEXUS - 25% OFF' },
+  BIGGESTFIRE: { discountPct: 0.25, label: 'BIGGESTFIRE - 25% OFF' },
+  IRISVAN: { discountPct: 0.3, label: 'IRISVAN - 30% OFF' },
 };
 
 function getPackById(packId) {
@@ -152,7 +156,7 @@ app.get('/app.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.js'));
 });
 app.get('/brand-logo.png', (req, res) => {
-  res.sendFile(FOOTER_LOGO_IMAGE_PATH);
+  res.sendFile(path.join(__dirname, 'brand-logo.png'));
 });
 app.get('/termos-de-servico', (req, res) => {
   res.sendFile(path.join(__dirname, 'termos-de-servico.html'));
@@ -182,6 +186,7 @@ app.post('/api/checkout/create', async (req, res) => {
     orderBumps,
     robloxIdOrUsername,
     customer,
+    couponCode,
     utm_source,
     utm_medium,
     utm_campaign,
@@ -229,26 +234,52 @@ app.post('/api/checkout/create', async (req, res) => {
     }));
   const bumpTotal = bumpItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
 
+  const normalizedCoupon = couponCode ? String(couponCode).trim().toUpperCase() : '';
+  const coupon = COUPONS[normalizedCoupon] || null;
+  const discountPct = coupon?.discountPct || 0;
+
   // A API espera:
   // - amount em centavos
   // - items com unitPrice em centavos
-  const amount = pack.priceCents * qty + bumpTotal;
+  const packTotal = pack.priceCents * qty;
+  const originalAmount = packTotal + bumpTotal;
+  const discountedTotal = Math.round(originalAmount * (1 - discountPct));
+
   const externalRef = `KINGBUX-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`; // único
   const baseUrl = getBaseUrlFromReq(req);
   const postbackUrl = `${baseUrl}/api/blackcat/webhook`;
 
+  const baseItems = [
+    {
+      title: `Robux ${pack.robux} (${pack.tag})`,
+      unitPrice: packTotal,
+      quantity: 1,
+      tangible: false,
+    },
+    ...bumpItems,
+  ];
+
+  const discountedItems = baseItems.map((item) => ({
+    ...item,
+    unitPrice: Math.round(item.unitPrice * (1 - discountPct)),
+  }));
+
+  const discountedItemsSum = discountedItems.reduce(
+    (acc, item) => acc + item.unitPrice * item.quantity,
+    0
+  );
+  const diff = discountedTotal - discountedItemsSum;
+  if (discountedItems.length > 0 && diff !== 0) {
+    // Ajusta diferença de centavos por arredondamento no primeiro item.
+    discountedItems[0].unitPrice = Math.max(0, discountedItems[0].unitPrice + diff);
+  }
+
   const payload = {
-    amount,
+    amount: discountedTotal,
     currency: 'BRL',
     paymentMethod: 'pix',
     items: [
-      {
-        title: `Robux ${pack.robux} (${pack.tag})`,
-        unitPrice: pack.priceCents,
-        quantity: qty,
-        tangible: false,
-      },
-      ...bumpItems,
+      ...discountedItems,
     ],
     customer: {
       name,
@@ -263,7 +294,9 @@ app.post('/api/checkout/create', async (req, res) => {
       expiresInDays: Number(process.env.BLACKCAT_PIX_EXPIRES_IN_DAYS || 1),
     },
     postbackUrl,
-    metadata: `Roblox: ${safeString(robloxIdOrUsername)}`,
+    metadata: `Roblox: ${safeString(robloxIdOrUsername)}${
+      coupon ? ` | Cupom: ${normalizedCoupon}` : ''
+    }`,
     externalRef,
   };
 
@@ -306,7 +339,7 @@ app.post('/api/checkout/create', async (req, res) => {
       success: true,
       transactionId: tx.transactionId || tx.id || null,
       status: tx.status || 'PENDING',
-      amountCents: amount,
+      amountCents: discountedTotal,
       checkoutUrl,
     });
   } catch (err) {

@@ -54,23 +54,6 @@ function getBaseUrlFromReq(req) {
   return `${proto}://${req.get('host')}`;
 }
 
-/** Busca string BR Code PIX (EMV) aninhada na resposta da gateway. */
-function findPixEmvInObject(obj, depth = 0) {
-  if (!obj || depth > 10) return '';
-  if (typeof obj === 'string') {
-    const compact = obj.replace(/\s+/g, '').trim();
-    if (isValidPixEmv(compact)) {
-      return compact;
-    }
-  }
-  if (typeof obj !== 'object') return '';
-  for (const v of Object.values(obj)) {
-    const hit = findPixEmvInObject(v, depth + 1);
-    if (hit) return hit;
-  }
-  return '';
-}
-
 function crc16CcittFalse(str) {
   let crc = 0xffff;
   for (let i = 0; i < str.length; i += 1) {
@@ -86,20 +69,76 @@ function crc16CcittFalse(str) {
   return crc;
 }
 
-function isValidPixEmv(value) {
-  const v = String(value || '').replace(/\s+/g, '').trim();
-  if (!v || v.length < 50) return false;
-  if (!v.startsWith('000201')) return false;
-  if (!/^[\x20-\x7E]+$/.test(v)) return false;
+function normalizePixCode(x) {
+  if (x == null) return '';
+  return String(x).replace(/\s+/g, '').trim();
+}
 
-  const crcFieldPos = v.lastIndexOf('6304');
-  if (crcFieldPos < 0 || crcFieldPos + 8 !== v.length) return false;
-  const givenCrcHex = v.slice(-4).toUpperCase();
-  if (!/^[0-9A-F]{4}$/.test(givenCrcHex)) return false;
+/** Alguns gateways devolvem o EMV somente em Base64. */
+function tryUnwrapBase64Pix(s) {
+  const v = normalizePixCode(s);
+  if (!v || v.startsWith('000201')) return v;
+  if (v.length < 40 || v.length % 4 !== 0) return v;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(v)) return v;
+  try {
+    const dec = Buffer.from(v, 'base64').toString('utf8');
+    const inner = normalizePixCode(dec);
+    return inner.startsWith('000201') ? inner : v;
+  } catch (_) {
+    return v;
+  }
+}
 
-  const payloadForCrc = v.slice(0, -4);
-  const calcHex = crc16CcittFalse(payloadForCrc).toString(16).toUpperCase().padStart(4, '0');
-  return calcHex === givenCrcHex;
+/** Formato mínimo de BR Code PIX (EMV) — sem exigir CRC válido (será recalculado). */
+function isPixBrCodeShape(v) {
+  const s = normalizePixCode(v);
+  if (!s || s.length < 50) return false;
+  if (!s.startsWith('000201')) return false;
+  if (!/^[\x20-\x7E]+$/.test(s)) return false;
+  return /6304[0-9A-Fa-f]{4}$/i.test(s);
+}
+
+/** CRC EMV: inclui bytes até "6304" e exclui só os 4 hex finais (ISO/EMV × PIX). */
+function finalizePixBrCode(v) {
+  const s = normalizePixCode(v);
+  if (!isPixBrCodeShape(s)) return s;
+  const base = s.slice(0, -4);
+  const crcHex = crc16CcittFalse(base).toString(16).toUpperCase().padStart(4, '0');
+  return `${base}${crcHex}`;
+}
+
+function coerceToPixBrCode(raw) {
+  const unwrapped = tryUnwrapBase64Pix(raw);
+  if (!isPixBrCodeShape(unwrapped)) return '';
+  return finalizePixBrCode(unwrapped);
+}
+
+/**
+ * Busca BR Code aninhado (só aceita padrão PIX BR para evitar string aleatória).
+ */
+function findPixEmvInObject(obj, depth = 0) {
+  if (!obj || depth > 10) return '';
+  if (typeof obj === 'string') {
+    const code = coerceToPixBrCode(obj);
+    if (code && (code.includes('br.gov.bcb.pix') || code.startsWith('0002012658'))) {
+      return code;
+    }
+  }
+  if (typeof obj !== 'object') return '';
+  for (const v of Object.values(obj)) {
+    const hit = findPixEmvInObject(v, depth + 1);
+    if (hit) return hit;
+  }
+  return '';
+}
+
+function getPaymentDataFromSaleResponse(data) {
+  const rootPd = data?.paymentData && typeof data.paymentData === 'object' ? data.paymentData : {};
+  const nestedPd =
+    data?.data?.paymentData && typeof data.data.paymentData === 'object'
+      ? data.data.paymentData
+      : {};
+  return { ...rootPd, ...nestedPd };
 }
 
 /**
@@ -111,15 +150,10 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
   const d = data?.data;
   if (!d || typeof d !== 'object') return null;
 
-  const pd = d.paymentData && typeof d.paymentData === 'object' ? d.paymentData : {};
+  const pd = getPaymentDataFromSaleResponse(data);
   const pix = d.pix || d.pixPayment || d.pixData || {};
 
-  const normalizeCode = (x) => {
-    if (x == null) return '';
-    return String(x).replace(/\s+/g, '').trim();
-  };
-
-  let pixCode = [
+  const candidates = [
     pd.copyPaste,
     pd.qrCode,
     pix.copyPaste,
@@ -134,9 +168,16 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
     d.pixCode,
     d.pixQrCode,
     d.brCode,
-  ]
-    .map(normalizeCode)
-    .find((s) => isValidPixEmv(s));
+  ];
+
+  let pixCode = '';
+  for (const c of candidates) {
+    const coerced = coerceToPixBrCode(c);
+    if (coerced) {
+      pixCode = coerced;
+      break;
+    }
+  }
 
   if (!pixCode) {
     pixCode = findPixEmvInObject(d);

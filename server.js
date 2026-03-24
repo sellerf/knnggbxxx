@@ -9,7 +9,8 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const FOOTER_LOGO_IMAGE_PATH = path.join(__dirname, 'brand-logo.png');
+const FOOTER_LOGO_IMAGE_PATH =
+  'C:\\Users\\Karina\\.cursor\\projects\\c-Users-Karina-Desktop-kx-KINGBUX\\assets\\c__Users_Karina_AppData_Roaming_Cursor_User_workspaceStorage_71a3c32e12f7e98b38981832196735d0_images_image-276c7ec4-d26c-4d6c-9d30-dc44c2d2fe2d.png';
 
 app.use(helmet());
 app.use(express.json({ limit: '200kb' }));
@@ -58,7 +59,7 @@ function findPixEmvInObject(obj, depth = 0) {
   if (!obj || depth > 10) return '';
   if (typeof obj === 'string') {
     const compact = obj.replace(/\s+/g, '').trim();
-    if (compact.length >= 50 && /^[0-9A-Za-z]+$/.test(compact) && compact.startsWith('000201')) {
+    if (isValidPixEmv(compact)) {
       return compact;
     }
   }
@@ -68,6 +69,37 @@ function findPixEmvInObject(obj, depth = 0) {
     if (hit) return hit;
   }
   return '';
+}
+
+function crc16CcittFalse(str) {
+  let crc = 0xffff;
+  for (let i = 0; i < str.length; i += 1) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let bit = 0; bit < 8; bit += 1) {
+      if (crc & 0x8000) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  return crc;
+}
+
+function isValidPixEmv(value) {
+  const v = String(value || '').replace(/\s+/g, '').trim();
+  if (!v || v.length < 50) return false;
+  if (!v.startsWith('000201')) return false;
+  if (!/^[\x20-\x7E]+$/.test(v)) return false;
+
+  const crcFieldPos = v.lastIndexOf('6304');
+  if (crcFieldPos < 0 || crcFieldPos + 8 !== v.length) return false;
+  const givenCrcHex = v.slice(-4).toUpperCase();
+  if (!/^[0-9A-F]{4}$/.test(givenCrcHex)) return false;
+
+  const payloadForCrc = v.slice(0, -4);
+  const calcHex = crc16CcittFalse(payloadForCrc).toString(16).toUpperCase().padStart(4, '0');
+  return calcHex === givenCrcHex;
 }
 
 /**
@@ -104,7 +136,7 @@ async function buildOnSitePixFromSaleResponse(data, amountCents) {
     d.brCode,
   ]
     .map(normalizeCode)
-    .find((s) => s.length >= 20);
+    .find((s) => isValidPixEmv(s));
 
   if (!pixCode) {
     pixCode = findPixEmvInObject(d);

@@ -6,7 +6,7 @@ const ORDER_BUMPS = {
 
 const COUPONS = {
   NEXUS: 0.25,
-  VAMP: 0.25,
+  SLYKO: 0.25,
   IRISVAN: 0.3,
 };
 

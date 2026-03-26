@@ -34,7 +34,7 @@ const ORDER_BUMPS = {
 
 const COUPONS = {
   NEXUS: { discountPct: 0.25, label: 'NEXUS - 25% OFF' },
-  VAMP: { discountPct: 0.25, label: 'VAMP - 25% OFF' },
+  VAMP: { discountPct: 0.25, label: 'SLYKO - 25% OFF' },
   IRISVAN: { discountPct: 0.3, label: 'IRISVAN - 30% OFF' },
 };
 

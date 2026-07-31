@@ -6,11 +6,12 @@ const ORDER_BUMPS = {
 
 const COUPONS = {
   NEXUS: 0.25,
-  SLYKO: 0.25,
+  BIGGESTFIRE: 0.25,
   IRISVAN: 0.3,
 };
 
-let appliedCoupon = null; // { code: string, discountPct: number }
+let appliedCoupon = null;
+let statusPollTimer = null;
 const COUPON_SEEN_COOKIE = 'kbx_coupon_seen';
 
 const feedbacks = [
@@ -48,10 +49,6 @@ function formatBRLFromCents(cents) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function inflateByFivePercent(cents) {
-  return Math.round(Number(cents || 0) * 1.05);
-}
-
 function escapeHtml(str) {
   return String(str)
     .replaceAll('&', '&amp;')
@@ -61,18 +58,53 @@ function escapeHtml(str) {
     .replaceAll("'", '&#039;');
 }
 
+function onlyDigits(value) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function formatPhone(value) {
+  const d = onlyDigits(value).slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function formatCpf(value) {
+  const d = onlyDigits(value).slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function isValidCpf(digits) {
+  const cpf = onlyDigits(digits);
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i += 1) sum += Number(cpf[i]) * (10 - i);
+  let d1 = (sum * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  if (d1 !== Number(cpf[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i += 1) sum += Number(cpf[i]) * (11 - i);
+  let d2 = (sum * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d2 === Number(cpf[10]);
+}
+
 function setNotice(el, kind, text) {
+  if (!el) return;
+  el.hidden = !text;
   el.classList.remove('notice--ok', 'notice--err');
   if (kind === 'ok') el.classList.add('notice--ok');
   if (kind === 'err') el.classList.add('notice--err');
-  el.textContent = text;
+  el.textContent = text || '';
 }
 
 function getUTMFromLocation() {
   const params = new URLSearchParams(window.location.search);
-  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
   const out = {};
-  keys.forEach((k) => {
+  ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach((k) => {
     const v = params.get(k);
     if (v) out[k] = v;
   });
@@ -131,8 +163,7 @@ function getPackSocialProof(pack) {
   }
 
   const spread = Math.max(1, maxReviews - minReviews + 1);
-  const reviewCount = minReviews + (seed % spread);
-  return { stars, reviewCount };
+  return { stars, reviewCount: minReviews + (seed % spread) };
 }
 
 function getNormalizedQuantity() {
@@ -151,17 +182,12 @@ function getSelectedBumps() {
 }
 
 function showCouponEarnedNotice() {
-  if (!appliedCoupon) return;
-  if (hasSeenCouponOverlay()) return;
+  if (!appliedCoupon || hasSeenCouponOverlay()) return;
   const couponOverlay = document.getElementById('couponOverlay');
   if (!couponOverlay) return;
-
   const pct = Math.round(appliedCoupon.discountPct * 100);
-  const titleEl = couponOverlay.querySelector('.couponOverlay__title');
   const textEl = couponOverlay.querySelector('.couponOverlay__text');
-  if (titleEl) titleEl.textContent = 'Cupom aplicado!';
   if (textEl) textEl.textContent = `Você ganhou ${pct}% de desconto (${appliedCoupon.code}).`;
-
   couponOverlay.hidden = false;
 }
 
@@ -170,91 +196,57 @@ function openCouponIfCheckout() {
   showCouponEarnedNotice();
 }
 
-function renderFeatured() {
-  const root = document.getElementById('featuredPacks');
-  if (!root) return;
-  if (!packs.length) return;
-  root.innerHTML = '';
-
-  packs.slice(0, 3).forEach((p) => {
-    const div = document.createElement('div');
-    div.className = 'packMini';
-    div.setAttribute('data-pack-id', p.id);
-    div.setAttribute('role', 'button');
-    div.setAttribute('tabindex', '0');
-    div.setAttribute('aria-label', `Escolher ${p.robux} Robux`);
-    div.innerHTML = `
-      <div class="packMini__left">
-        <div class="packMini__robux">${p.robux} Robux</div>
-        <div class="packMini__meta">${escapeHtml(p.tag)}</div>
-      </div>
-      <div class="packMini__right">
-        <div class="packMini__price">${formatBRLFromCents(p.priceCents)}</div>
-        <div class="packMini__cta">Escolher pacote</div>
-      </div>
-    `;
-    const choose = () => {
-      const sel = document.getElementById('packSelect');
-      if (sel) sel.value = p.id;
-      updateSummaryFromSelect();
-      location.hash = '#checkout';
-      setTimeout(openCouponIfCheckout, 0);
-    };
-    div.addEventListener('click', choose);
-    div.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        choose();
-      }
-    });
-    root.appendChild(div);
-  });
+function choosePack(packId) {
+  const sel = document.getElementById('packSelect');
+  if (sel) sel.value = packId;
+  updateSummaryFromSelect();
+  location.hash = '#checkout';
+  setTimeout(openCouponIfCheckout, 0);
 }
 
 function renderPricingGrid() {
   const root = document.getElementById('pricingGrid');
   const sel = document.getElementById('packSelect');
-  if (!root) return;
-  if (!packs.length) return;
+  if (!root || !packs.length) return;
   root.innerHTML = '';
   if (sel) sel.innerHTML = '';
+
+  const hotId = packs.find((p) => p.id === 'p1000')?.id || packs[Math.min(4, packs.length - 1)]?.id;
 
   packs.forEach((p) => {
     const social = getPackSocialProof(p);
     const starsVisual = `${'★'.repeat(social.stars)}${'☆'.repeat(5 - social.stars)}`;
-    const card = document.createElement('div');
-    card.className = 'priceCard';
+    const compare = p.robloxPriceCents
+      ? `<div class="priceCard__compare">no Roblox: <s>${formatBRLFromCents(p.robloxPriceCents)}</s></div>`
+      : '';
+    const card = document.createElement('article');
+    card.className = `priceCard${p.id === hotId ? ' priceCard--hot' : ''}`;
     card.setAttribute('data-pack-id', p.id);
     card.innerHTML = `
       <div class="priceCard__top">
-        <div>
-          <div class="priceCard__robux">${p.robux} Robux</div>
-          <div class="priceCard__reviews" aria-label="${social.stars} estrelas com ${social.reviewCount} avaliações">
-            <span class="priceCard__stars" aria-hidden="true">${starsVisual}</span>
-            <span class="priceCard__reviewCount">(${social.reviewCount} avaliações)</span>
-          </div>
-        </div>
+        <div class="priceCard__robux">${p.robux} Robux</div>
         <div class="priceCard__tag">${escapeHtml(p.tag)}</div>
       </div>
       <div class="priceCard__price">${formatBRLFromCents(p.priceCents)}</div>
-      <div class="priceCard__desc">Entrega após confirmação do pagamento. Não pedimos senha do Roblox.</div>
+      ${compare}
+      <div class="priceCard__reviews" aria-label="${social.stars} estrelas, ${social.reviewCount} avaliações">
+        <span class="priceCard__stars" aria-hidden="true">${starsVisual}</span>
+        <span>${social.reviewCount} avaliações</span>
+      </div>
+      <ul class="priceCard__perks">
+        <li>Entrega após confirmação</li>
+        <li>Suporte no Discord</li>
+        <li>Sem pedir senha</li>
+      </ul>
       <div class="priceCard__actions">
         <button class="btn btn--primary" type="button" data-action="choose" data-pack="${escapeHtml(p.id)}">
-          Escolher
+          Comprar ${p.robux} Robux
         </button>
       </div>
     `;
 
-    card.querySelectorAll('[data-pack][data-action]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const packId = btn.getAttribute('data-pack');
-        if (sel) sel.value = packId;
-        updateSummaryFromSelect();
-        if (btn.getAttribute('data-action') === 'choose') {
-          location.hash = '#checkout';
-        }
-        setTimeout(openCouponIfCheckout, 0);
-      });
+    card.querySelector('[data-action="choose"]')?.addEventListener('click', () => {
+      choosePack(p.id);
     });
 
     root.appendChild(card);
@@ -262,7 +254,7 @@ function renderPricingGrid() {
     if (sel) {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = `${p.robux} Robux - ${formatBRLFromCents(p.priceCents)}`;
+      opt.textContent = `${p.robux} Robux — ${formatBRLFromCents(p.priceCents)}`;
       sel.appendChild(opt);
     }
   });
@@ -270,6 +262,20 @@ function renderPricingGrid() {
 
 function getPackById(packId) {
   return packs.find((p) => p.id === packId) || null;
+}
+
+function updateStickyBar(pack, qty, finalTotal) {
+  const bar = document.getElementById('stickyBar');
+  const label = document.getElementById('stickyLabel');
+  const price = document.getElementById('stickyPrice');
+  if (!bar || !label || !price) return;
+  if (!pack) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  label.textContent = `${pack.robux * qty} Robux selecionados`;
+  price.textContent = formatBRLFromCents(finalTotal);
 }
 
 function updateSummaryFromSelect() {
@@ -303,6 +309,7 @@ function updateSummaryFromSelect() {
     summaryCoupon.textContent = 'Nenhum';
     summaryPrice.textContent = '—';
     syncPackSelectionUI('');
+    updateStickyBar(null, 1, 0);
     return;
   }
 
@@ -316,15 +323,16 @@ function updateSummaryFromSelect() {
   const discountCents = baseTotal - finalTotal;
   const pct = appliedCoupon ? Math.round(appliedCoupon.discountPct * 100) : 0;
 
-  summaryRobux.textContent = `${robuxTotal} (${pack.robux} x ${qty})`;
+  summaryRobux.textContent = `${robuxTotal} (${pack.robux} × ${qty})`;
   summaryQuantity.textContent = String(qty);
   summaryBumps.textContent = selectedBumpKeys.length
     ? selectedBumpKeys.map((k) => ORDER_BUMPS[k].label).join(', ')
     : 'Nenhum';
   summarySitePrice.textContent = formatBRLFromCents(baseTotal);
-  summaryCoupon.textContent = discountCents > 0 ? `- ${formatBRLFromCents(discountCents)} (${pct}% OFF)` : 'Nenhum';
+  summaryCoupon.textContent = discountCents > 0 ? `− ${formatBRLFromCents(discountCents)} (${pct}% OFF)` : 'Nenhum';
   summaryPrice.textContent = formatBRLFromCents(finalTotal);
   syncPackSelectionUI(sel.value);
+  updateStickyBar(pack, qty, finalTotal);
 }
 
 function syncPackSelectionUI(packId) {
@@ -338,24 +346,22 @@ function renderFeedbacks() {
   const root = document.getElementById('feedbackGrid');
   if (!root) return;
   root.innerHTML = '';
-
   feedbacks.forEach((f) => {
-    const card = document.createElement('div');
+    const card = document.createElement('article');
     card.className = 'feedbackCard';
-    const stars = Array.from({ length: f.stars }).map(() => '★').join('');
-
+    const stars = Array.from({ length: f.stars })
+      .map(() => '★')
+      .join('');
     card.innerHTML = `
       <div class="feedbackCard__top">
-        <div class="feedbackCard__name">${escapeHtml(f.name)}</div>
+        <div class="feedbackCard__name">@${escapeHtml(f.name)}</div>
         <div class="feedbackCard__stars" aria-label="${f.stars} de 5">
           <span aria-hidden="true">${stars}</span>
-          <span class="srOnly">${f.stars} de 5 estrelas</span>
         </div>
       </div>
-      <div class="feedbackCard__meta">${escapeHtml(f.when)} • ${escapeHtml(f.packLabel)}</div>
-      <div class="feedbackCard__text">${escapeHtml(f.text)}</div>
+      <div class="feedbackCard__meta">${escapeHtml(f.when)} · ${escapeHtml(f.packLabel)}</div>
+      <div class="feedbackCard__text">“${escapeHtml(f.text)}”</div>
     `;
-
     root.appendChild(card);
   });
 }
@@ -366,9 +372,80 @@ async function fetchPacks() {
   packs = Array.isArray(data?.packs) ? data.packs : [];
 }
 
+function stopStatusPoll() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
+}
+
+function showPaymentPanel(data) {
+  const form = document.getElementById('checkoutForm');
+  const panel = document.getElementById('paymentPanel');
+  const summaryCard = document.getElementById('summaryCard');
+  if (!panel) return;
+
+  if (form) form.hidden = true;
+  if (summaryCard) summaryCard.hidden = true;
+  panel.hidden = false;
+
+  const amountEl = document.getElementById('paymentAmount');
+  const qrEl = document.getElementById('paymentQr');
+  const codeEl = document.getElementById('paymentCode');
+  const txEl = document.getElementById('paymentTx');
+  const statusEl = document.getElementById('paymentStatus');
+
+  if (amountEl) amountEl.textContent = formatBRLFromCents(data.amountCents || 0);
+  if (qrEl) {
+    qrEl.src = data.qrImage || '';
+    qrEl.hidden = !data.qrImage;
+  }
+  if (codeEl) codeEl.value = data.pixCode || '';
+  if (txEl) txEl.textContent = data.transactionId ? `Pedido: ${data.transactionId}` : '';
+  setNotice(statusEl, null, 'Aguardando pagamento...');
+
+  stopStatusPoll();
+  if (!data.transactionId) return;
+
+  let ticks = 0;
+  statusPollTimer = setInterval(async () => {
+    ticks += 1;
+    if (ticks > 180) {
+      stopStatusPoll();
+      setNotice(statusEl, 'err', 'Ainda não confirmamos. Se já pagou, fale com o suporte no Discord.');
+      return;
+    }
+    try {
+      const resp = await fetch(`/api/transaction/${encodeURIComponent(data.transactionId)}`);
+      const st = await resp.json().catch(() => ({}));
+      const status = String(st?.status || '').toUpperCase();
+      if (status === 'PAID') {
+        stopStatusPoll();
+        setNotice(statusEl, 'ok', 'Pagamento confirmado! Em breve liberamos a entrega.');
+      } else if (status === 'CANCELLED' || status === 'FAILED' || status === 'REFUNDED') {
+        stopStatusPoll();
+        setNotice(statusEl, 'err', 'Pagamento cancelado ou expirado. Gere um novo PIX.');
+      }
+    } catch (_) {
+      /* ignore transient poll errors */
+    }
+  }, 4000);
+}
+
+function resetToForm() {
+  stopStatusPoll();
+  const form = document.getElementById('checkoutForm');
+  const panel = document.getElementById('paymentPanel');
+  const summaryCard = document.getElementById('summaryCard');
+  if (form) form.hidden = false;
+  if (summaryCard) summaryCard.hidden = false;
+  if (panel) panel.hidden = true;
+  setNotice(document.getElementById('checkoutNotice'), null, '');
+}
+
 async function createCheckout() {
   const notice = document.getElementById('checkoutNotice');
-  const form = document.getElementById('checkoutForm');
+  const payBtn = document.getElementById('payBtn');
   const packSelect = document.getElementById('packSelect');
   const robloxId = document.getElementById('robloxId');
   const customerName = document.getElementById('customerName');
@@ -382,38 +459,26 @@ async function createCheckout() {
 
   const packId = packSelect?.value;
   const value = robloxId?.value?.trim();
+  const name = customerName?.value?.trim() || '';
+  const email = customerEmail?.value?.trim() || '';
+  const phone = onlyDigits(customerPhone?.value);
+  const docNumber = onlyDigits(documentNumber?.value);
 
   if (!packId || !value) {
-    setNotice(notice, 'err', 'Preencha os campos antes de prosseguir.');
+    setNotice(notice, 'err', 'Escolha o pacote e informe seu usuário do Roblox.');
+    return;
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setNotice(notice, 'err', 'Informe um e-mail válido.');
+    customerEmail?.focus();
     return;
   }
 
-  setNotice(notice, null, 'Criando pedido... aguarde.');
+  setNotice(notice, null, 'Gerando PIX...');
+  if (payBtn) payBtn.disabled = true;
+
   try {
-    const customer = {
-      name: customerName?.value?.trim(),
-      email: customerEmail?.value?.trim(),
-      phone: customerPhone?.value?.trim(),
-      document: {
-        type: documentType?.value,
-        number: documentNumber?.value?.trim(),
-      },
-    };
-
-    // Validação mínima no front (o backend valida também).
-    if (
-      !customer.name ||
-      !customer.email ||
-      !customer.phone ||
-      !customer.document?.type ||
-      !customer.document?.number
-    ) {
-      setNotice(notice, 'err', 'Preencha os dados do cliente (nome, e-mail, telefone e documento).');
-      return;
-    }
-
     const utm = getUTMFromLocation();
-
     const resp = await fetch('/api/checkout/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -422,7 +487,15 @@ async function createCheckout() {
         quantity,
         orderBumps: selectedBumps,
         robloxIdOrUsername: value,
-        customer,
+        customer: {
+          name,
+          email,
+          phone,
+          document: {
+            type: documentType?.value || 'cpf',
+            number: docNumber,
+          },
+        },
         couponCode,
         ...utm,
       }),
@@ -431,30 +504,33 @@ async function createCheckout() {
     const data = await resp.json().catch(() => ({}));
 
     if (!resp.ok) {
-      const msg = data?.error || `Erro ${resp.status}.`;
-      setNotice(notice, 'err', msg);
+      setNotice(notice, 'err', data?.error || `Erro ${resp.status}.`);
+      return;
+    }
+
+    if (data?.success && data?.pixCode) {
+      setNotice(notice, 'ok', 'PIX gerado. Pague abaixo para confirmar.');
+      showPaymentPanel(data);
+      panelScroll();
       return;
     }
 
     if (data?.success && data?.checkoutUrl) {
-      setNotice(notice, 'ok', 'Pedido criado. Redirecionando para o checkout seguro...');
+      setNotice(notice, 'ok', 'Redirecionando para o pagamento...');
       window.location.href = data.checkoutUrl;
       return;
     }
 
-    setNotice(
-      notice,
-      'err',
-      data?.error || 'Resposta inesperada do servidor ao criar o pagamento.'
-    );
-  } catch (err) {
+    setNotice(notice, 'err', data?.error || 'Não foi possível gerar o pagamento.');
+  } catch (_) {
     setNotice(notice, 'err', 'Falha ao conectar com o servidor.');
   } finally {
-    if (form) {
-      // Mantém o formulário mas remove foco; evita fricção de UX.
-      document.activeElement?.blur?.();
-    }
+    if (payBtn) payBtn.disabled = false;
   }
+}
+
+function panelScroll() {
+  document.getElementById('paymentPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function wireCheckout() {
@@ -471,24 +547,33 @@ function wireCheckout() {
   document.getElementById('bumpKorblox')?.addEventListener('change', () => updateSummaryFromSelect());
   document.getElementById('bumpHeadless')?.addEventListener('change', () => updateSummaryFromSelect());
 
+  const phoneEl = document.getElementById('customerPhone');
+  phoneEl?.addEventListener('input', () => {
+    phoneEl.value = formatPhone(phoneEl.value);
+  });
+
+  const cpfEl = document.getElementById('documentNumber');
+  cpfEl?.addEventListener('input', () => {
+    cpfEl.value = formatCpf(cpfEl.value);
+  });
+
   const couponInput = document.getElementById('couponInput');
   const applyCouponBtn = document.getElementById('applyCouponBtn');
   const checkoutNotice = document.getElementById('checkoutNotice');
 
   const applyCoupon = () => {
-    const raw = couponInput?.value?.trim() || '';
-    const code = raw.toUpperCase();
+    const code = (couponInput?.value || '').trim().toUpperCase();
     const pct = COUPONS[code];
     if (!pct) {
       appliedCoupon = null;
       updateSummaryFromSelect();
-      if (checkoutNotice) setNotice(checkoutNotice, null, 'Cupom removido/ inválido.');
+      setNotice(checkoutNotice, 'err', 'Cupom inválido.');
       return;
     }
-
     appliedCoupon = { code, discountPct: pct };
     updateSummaryFromSelect();
-    if (checkoutNotice) setNotice(checkoutNotice, 'ok', `Cupom ${code} aplicado!`);
+    setNotice(checkoutNotice, 'ok', `Cupom ${code} aplicado.`);
+    showCouponEarnedNotice();
   };
 
   applyCouponBtn?.addEventListener('click', applyCoupon);
@@ -503,29 +588,46 @@ function wireCheckout() {
     if (couponOverlay) couponOverlay.hidden = true;
     setCookie(COUPON_SEEN_COOKIE, '1', 30);
   });
+
+  document.getElementById('copyPixBtn')?.addEventListener('click', async () => {
+    const code = document.getElementById('paymentCode')?.value || '';
+    const statusEl = document.getElementById('paymentStatus');
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setNotice(statusEl, 'ok', 'Código PIX copiado.');
+    } catch (_) {
+      document.getElementById('paymentCode')?.select();
+      setNotice(statusEl, null, 'Selecione e copie o código manualmente.');
+    }
+  });
+
+  document.getElementById('newOrderBtn')?.addEventListener('click', () => {
+    resetToForm();
+  });
+
   window.addEventListener('hashchange', openCouponIfCheckout);
 }
 
 function initYear() {
   const el = document.getElementById('year');
-  if (el) el.textContent = new Date().getFullYear();
+  if (el) el.textContent = String(new Date().getFullYear());
 }
 
 function init() {
   initYear();
   fetchPacks()
     .then(() => {
-      renderFeatured();
       renderPricingGrid();
       updateSummaryFromSelect();
       renderFeedbacks();
       wireCheckout();
+      openCouponIfCheckout();
     })
     .catch(() => {
-      // Caso o backend não responda os packs, evita travar a página.
       renderFeedbacks();
+      wireCheckout();
     });
 }
 
 init();
-

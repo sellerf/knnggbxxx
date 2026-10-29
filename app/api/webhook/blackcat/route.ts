@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateOrderFromGateway } from '@/lib/db';
 export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (contentLength > 8_192) return NextResponse.json({ error: 'Evento muito grande.' }, { status: 413 });
@@ -34,7 +33,5 @@ export async function POST(request: NextRequest) {
   const gatewayResult = await gatewayResponse.json().catch(() => null);
   const confirmedStatus = String(gatewayResult?.data?.status || '').toUpperCase();
   if (!['PENDING', 'PENDING_3DS', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'].includes(confirmedStatus)) return NextResponse.json({ error: 'Status de pagamento desconhecido.' }, { status: 400 });
-  try { await updateOrderFromGateway(event.transactionId, confirmedStatus); }
-  catch { return NextResponse.json({ error: 'O pedido ainda não pôde ser sincronizado.' }, { status: 503 }); }
   return NextResponse.json({ received: true });
 }

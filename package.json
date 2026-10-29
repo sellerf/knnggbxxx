@@ -1,17 +1,35 @@
 {
-  "name": "kingbux",
+  "name": "computafacil-store",
   "version": "1.0.0",
   "private": true,
-  "type": "commonjs",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "qrcode": "^1.5.4"
+    "@neon/env": "^1.6.6",
+    "@neondatabase/auth": "^0.7.0-beta",
+    "@neondatabase/serverless": "^1.2.0",
+    "lucide-react": "^0.468.0",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "simple-icons": "^16.36.0"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.9.5",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "better-auth": "1.7.14",
+    "@better-auth/core": "1.7.14",
+    "@better-auth/drizzle-adapter": "1.7.14",
+    "@better-auth/oauth-provider": "1.7.14",
+    "zod": "4.6.6"
   }
 }
